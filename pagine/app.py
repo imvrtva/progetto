@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 # Configurazione del database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+    #'postgresql+psycopg2://myuser:mypassword@localhost/mydatabase
 app.config['SECRET_KEY'] = 'your_secret_key'
 
 # Inizializzazione di SQLAlchemy
