@@ -75,9 +75,6 @@ class User(db.Model):
 
     def is_authenticated(self):
         return True
-
-    # def is_anonymous(self):
-        # return False
     
 #----------------------------------------------------------------#
  
@@ -96,11 +93,11 @@ def load_user(user_id):
 # pagine login, ecc.).
 
 # Importare i blueprint delle diverse sezioni
-from pagine.homeu.homeu import home_utente_bp
-from pagine.homep.homep import home_inserzionista_bp
-from pagine.login.login import login_bp
-from pagine.profili.profili import profili_bp
-from pagine.pubblicare.pubblicare import pubblicare_bp
+from py.homeu.homeu import home_utente_bp
+from py.homep.homep import home_inserzionista_bp
+from py.login.login import login_bp
+from py.profili.profili import profili_bp
+from py.pubblicare.pubblicare import pubblicare_bp
 
 #----------------------------------------------------------------#
 
