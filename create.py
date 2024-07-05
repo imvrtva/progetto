@@ -1,6 +1,18 @@
 #creare classi dinamiche e non
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
+from flask_login import LoginManager
+from flask_bcrypt import Bcrypt
+import subprocess
+import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-class User(db.Model):
+db = SQLAlchemy()
+login_manager = LoginManager()
+bcrypt = Bcrypt()
+
+class utente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)

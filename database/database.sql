@@ -1,9 +1,12 @@
 CREATE TYPE ruolo as ENUM('utente', 'pubblicitari');
-CREATE TYPE tipo_post as ENUM('immagini', 'video', 'testi');
+CREATE TYPE tipo_post as ENUM('immagini', 'video', 'testo');
 CREATE TYPE sesso as ENUM('maschio', 'femmina', 'altro');
 
 CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL PRIMARY KEY,
+    immagine BLOB
+    nome VARCHAR(50) NOT NULL,
+    cognome VARCHAR(50) NOT NULL,
     password VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     sesso sesso,
@@ -30,8 +33,10 @@ CREATE TABLE amici (
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
     utente VARCHAR(50) REFERENCES users(username),
+    media BLOB
     tipo_post tipo_post,
-    data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    testo TEXT
 );
 
 CREATE TABLE post_comments (
