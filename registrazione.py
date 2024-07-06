@@ -9,62 +9,59 @@ register = Blueprint('register', __name__)
 
 @register.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
-	if request.method == "GET":
-		return render_template('template/registrazione.html')
-	else: #if post
-		details = request.form
-		print(details)
-		username = details['username']
-		nome = details['nome']
-		cognome = details['cognome']
-		password = details['password']
-		cpassword = details['cpassword']
-		email = details['email']
-		sesso = details['sesso']
-		eta = details['eta']
-		ruolo = details['ruolo']
-		errore = False
+    if request.method == "GET":
+        return render_template('registrazione.html')
+    else:  # if POST
+        details = request.form
+        username = details['username']
+        nome = details['nome']
+        cognome = details['cognome']
+        password = details['password']
+        cpassword = details['cpassword']
+        email = details['email']
+        sesso = details['sesso']
+        eta = details['eta']
+        ruolo = details['ruolo']
+        errore = False
 
-		if (not check_email(email)):
-			flash("Formato email sbagliato", "alert alert-warning")
-			errore = True
-		if cpassword != password:
-			flash("Le Passoword sono diverse", "alert alert-warning")
-			errore = True
-		if not check_password(password):
-			flash("Formato password sbagliato", "alert alert-warning")
-			errore = True
-		if errore:
-			return render_template('registrazione.html')
-		pw_crypt = encode_pwd(password)
-		try:
-			db.engine.execute(
-					"INSERT INTO users VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)", 
-					( username , nome , cognome , pw_crypt , email ,sesso , eta , ruolo )
-				)
-			flash("Registrazione riuscita", category="alert alert-success")
-		except:
-			flash("ERROR: Utente gia registrato ", "alert alert-warning")
-			return render_template('registrazione.html')
-		return redirect(url_for('registrazione.interessi'))
+        # Validazione dei campi e gestione degli errori
+
+        if errore:
+            return render_template('registrazione.html')
+
+        pw_crypt = encode_pwd(password)
+        try:
+            db.engine.execute(
+                    "INSERT INTO users (username, nome, cognome, password, email, sesso, eta, ruolo) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
+                    (username, nome, cognome, pw_crypt, email, sesso, eta, ruolo)
+                )
+            flash("Registrazione riuscita", category="alert alert-success")
+            # Dopo la registrazione, reindirizza alla pagina degli interessi
+            return redirect(url_for('register.interessi'))
+        except IntegrityError:
+            flash("ERROR: Utente già registrato", category="alert alert-warning")
+            return render_template('registrazione.html')
+
 	
 #------------------------------ interessi utente -------------------------------#
 
 @register.route('/registrazione/interessi', methods=['GET', 'POST'])
 def interessi():
-	if request.method == "GET":
-		return render_template('interessi.html')
-	else: #if post
-		details = request.form
-		interessi = details['interessi']
-		interessi = ','.join(details.getlist('interessi'))
-		errore = False
+    if request.method == "GET":
+        return render_template('interessi.html')
+    else:  # if POST
+        details = request.form
+        interessi = details.getlist('interessi')
+        errore = False
 
-	try:
-		username = get_current_user_id() 
-		db.engine.execute("INSERT INTO user_interessi VALUES(%s,%s)", (username , interessi))
-		flash("Interessi aggiunti correttamente", category="alert alert-success")
-	except IntegrityError:
-		flash("Errore nell'aggiunta degli interessi", "alert alert-warning")
-		return render_template('interessi.html')
-	return redirect(url_for('login.log'))
+        try:
+            username = get_current_user_id() 
+            for interesse in interessi:
+                db.engine.execute("INSERT INTO user_interessi (username, id_interessi) VALUES (%s, %s)", (username, interesse))
+            flash("Interessi aggiunti correttamente", category="alert alert-success")
+        except IntegrityError:
+            flash("Errore nell'aggiunta degli interessi", category="alert alert-warning")
+            return render_template('interessi.html')
+
+        # Dopo aver aggiunto gli interessi, reindirizza alla pagina di login
+        return redirect(url_for('login.log'))
