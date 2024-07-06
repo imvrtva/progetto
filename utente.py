@@ -5,11 +5,12 @@ from .function import *
 from .models import User, Post, Comment, Like, Follow
 from datetime import datetime
 
-login = Blueprint('login', __name__)
+ruolo_standard = 'utente'
+utente = Blueprint('utente', __name__)
 
 #------------------------------ modifica info profilo -------------------------------#
 
-@login.route('/<string:username>/modifica_profilo', methods=['GET', 'POST'])
+@utente.route('/<string:username>/modifica_profilo', methods=['GET', 'POST'])
 @login_required
 def modifica_profilo():
     if request.method == 'POST':
@@ -48,7 +49,7 @@ def modifica_profilo():
     ## pubblicazione immagine
     ## pubblicazione video
 
-@login.route('/<string:username>/pubblicazione', methods=['POST'])
+@utente.route('/<string:username>/pubblicazione', methods=['POST'])
 @login_required
 def pubblica(username):
     contenuto = request.form.get('contenuto')
@@ -82,11 +83,11 @@ def pubblica(username):
         db.session.rollback()
         flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
 
-    return redirect(url_for('login.utente_home'))
+    return redirect(url_for('utente.pubblica(username)'))
 
 #------------------------------ inserimento commenti -------------------------------#
 
-@login.route('/commenta_post/<int:post_id>', methods=['POST'])
+@utente.route('/commenti/<string:utente>', methods=['POST'])
 @login_required
 def commenta_post(post_id):
     details = request.form
@@ -110,7 +111,7 @@ def commenta_post(post_id):
 
 #------------------------------ inserimento mi piace -------------------------------#
 
-@login.route('/mi_piace/<int:post_id>', methods=['POST'])
+@utente.route('/mi_piace/<int:post_id>', methods=['POST'])
 @login_required
 def mi_piace(post_id):
     post = Post.query.get(post_id)
@@ -137,7 +138,7 @@ def mi_piace(post_id):
 
 #------------------------------ seguire una persona -------------------------------#
 
-@login.route('/segui_utente/<string:username_da_seguire>', methods=['POST'])
+@utente.route('/segui_utente/<string:username_da_seguire>', methods=['POST'])
 @login_required
 def segui_utente(username_da_seguire):
     if username_da_seguire == current_user.username:
@@ -166,7 +167,7 @@ def segui_utente(username_da_seguire):
 
 #------------------------------ ricerca utente -------------------------------#
 
-@login.route('/cerca_utente', methods=['GET', 'POST'])
+@utente.route('/cerca_utente', methods=['GET', 'POST'])
 @login_required
 def cerca_utente():
     if request.method == 'POST':
