@@ -12,7 +12,7 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 bcrypt = Bcrypt()
 
-class utente(db.Model):
+class users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
@@ -26,3 +26,4 @@ class utente(db.Model):
 
     def is_authenticated(self):
         return True
+

@@ -2,8 +2,11 @@ from flask import request, url_for, redirect, render_template, jsonify, Blueprin
 from flask_login import login_required, current_user
 from .create import *
 from .function import *
-from .models import User, Post, Comment, Like, Follow
+from .create import User, posts, Comment, Like, Follow
 from datetime import datetime
+from werkzeug.utils import secure_filename
+import os
+import sqlite3
 
 ruolo_standard = 'utente'
 utente = Blueprint('utente', __name__)
@@ -46,56 +49,18 @@ def modifica_profilo():
 #------------------------------ pubblicazione post -------------------------------#
 
     ## pubblicazione testo
-    ## pubblicazione immagine
-    ## pubblicazione video
-
-@utente.route('/<string:username>/pubblicazione', methods=['POST'])
-@login_required
-def pubblica(username):
-    contenuto = request.form.get('contenuto')
-    file = request.files['photo-profile']
-    filename = secure_filename(file.filename)
-    media = request.files('media')  # Assume che il file multimediale venga inviato tramite POST
-    tipo_post = request.form.get('tipo_post')  # Assume che ci sia un campo 'tipo_post' nel form
-
-    if not contenuto and not media:
-        flash('Il post non può essere vuoto', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))
-
-    # Gestione dell'upload del file multimediale (se presente)
-    media_blob = None
-    if media:
-        media_blob = media.read()  # Leggi i dati del file multimediale in un blob di byte
-
-    nuovo_post = Post(
-        utente=current_user.username,
-        media=media_blob,
-        tipo_post=tipo_post,
-        data_creazione=datetime.now(),
-        testo=contenuto
-    )
-
-    try:
-        db.session.add(nuovo_post)
-        db.session.commit()
-        flash('Post pubblicato con successo', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
-
-    return redirect(url_for('utente.pubblica(username)'))
-
+ 
 @utente.route('/pubblica/testo/<username>', methods=['POST'])
 @login_required
 def post_testo(username):
     contenuto = request.form.get('contenuto')
-    tipo_post = request.form.get('tipo_post')  # Assume che ci sia un campo 'tipo_post' nel form
+    tipo_post = request.form.get('testo')  # Assume che ci sia un campo 'tipo_post' nel form
 
     if not contenuto:
         flash('Il post non può essere vuoto', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))
+        return render_template('template/pubblicazione_testo.html') # rimane nella stessa pagina html
 
-    nuovo_post = Post(
+    nuovo_post = posts(
         utente=current_user.username,
         tipo_post=tipo_post,
         data_creazione=datetime.now(),
@@ -108,30 +73,31 @@ def post_testo(username):
         flash('Post pubblicato con successo', 'alert alert-success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
+        flash('Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
 
-    return redirect(url_for('utente.pubblica', username=username))
+    return render_template('template/home_utente.html')
+
+    ## pubblicazione video
 
 @utente.route('/pubblica/video/<username>', methods=['POST'])
 @login_required
-
 def post_video(username):
     file = request.files.get('video')
     contenuto = request.form.get('contenuto')
 
     if not file or file.filename == '':
         flash('Nessun file selezionato', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))
+        return render_template('template/pubblicazione_video.html')
 
     filename = secure_filename(file.filename)
-    file.save(os.path.join('path/to/save', filename))  # Specifica il percorso dove salvare il file
+    file.save(os.path.join('contenuti', filename))  # Specifica il percorso dove salvare il file
 
-    nuovo_post = Post(
+    nuovo_post = posts(
         utente=current_user.username,
+        media=filename,
         tipo_post='video',
         data_creazione=datetime.now(),
-        testo=contenuto,
-        media=filename
+        testo=contenuto
     )
 
     try:
@@ -142,23 +108,24 @@ def post_video(username):
         db.session.rollback()
         flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
 
-    return redirect(url_for('utente.pubblica', username=username))
+    return render_template('template/home_utente.html')
+
+    ## pubblicazione immagine
 
 @utente.route('/pubblica/immagine/<username>', methods=['POST'])
 @login_required
-
 def post_immagine(username):
     file = request.files.get('photo')
     contenuto = request.form.get('contenuto')
 
     if not file or file.filename == '':
         flash('Nessun file selezionato', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))
+        return render_template('template/pubblicazione_immagine.html')
 
     filename = secure_filename(file.filename)
-    file.save(os.path.join('path/to/save', filename))  # Specifica il percorso dove salvare il file
+    file.save(os.path.join('contenuti', filename))  # Specifica il percorso dove salvare il file
 
-    nuovo_post = Post(
+    nuovo_post = posts(
         utente=current_user.username,
         tipo_post='immagine',
         data_creazione=datetime.now(),
@@ -174,9 +141,43 @@ def post_immagine(username):
         db.session.rollback()
         flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
 
-    return redirect(url_for('utente.pubblica', username=username))
+    return render_template('template/home_utente.html')
 
 
+@utente.route('/elimina_post/<int:post_id>', methods=['DELETE'])
+@login_required
+def elimina_post(id):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+
+        # Verifica se il post esiste e appartiene all'utente corrente
+        cursor.execute("SELECT * FROM posts WHERE id = ? AND utente = ?", (id, current_user))
+        post = cursor.fetchone()
+        
+        if post is None:
+            return jsonify({"message": "Post non trovato o non autorizzato"}), 404
+
+        # Elimina i commenti associati al post
+        cursor.execute("DELETE FROM post_comments WHERE id = ?", (id,))
+
+        # Elimina i like associati al post
+        cursor.execute("DELETE FROM post_likes WHERE id = ?", (id,))
+        
+        # Elimina il post
+        cursor.execute("DELETE FROM posts WHERE id = ?", (id,))
+        
+        conn.commit()
+        return jsonify({"message": "Post eliminato con successo"}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": f"Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('profilo_io.html')
 
 #------------------------------ inserimento commenti -------------------------------#
 
@@ -202,12 +203,41 @@ def commenta_post(post_id):
     
     return redirect(url_for('login.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
 
+@utente.route('/elimina_commento/<int:comment_id>', methods=['DELETE'])
+@login_required
+def elimina_commento(id):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+
+        # Verifica se il commento esiste e appartiene all'utente corrente
+        cursor.execute("SELECT * FROM post_comments WHERE id = ? AND utentec = ?", (id, current_user))
+        commento = cursor.fetchone()
+        
+        if commento is None:
+            return jsonify({"message": "Commento non trovato o non autorizzato"}), 404
+        
+        # Elimina il commento
+        cursor.execute("DELETE FROM post_comments WHERE id = ?", (id))
+        
+        conn.commit()
+        return jsonify({"message": "Commento eliminato con successo"}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": f"Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('commenti.html', user=utente)
+
 #------------------------------ inserimento mi piace -------------------------------#
 
 @utente.route('/mi_piace/<int:post_id>', methods=['POST'])
 @login_required
 def mi_piace(post_id):
-    post = Post.query.get(post_id)
+    post = posts.query.get(post_id)
 
     if not post:
         flash('Il post non esiste', 'alert alert-warning')
@@ -229,34 +259,125 @@ def mi_piace(post_id):
     
     return redirect(url_for('login.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
 
-#------------------------------ seguire una persona -------------------------------#
-
-@utente.route('/segui_utente/<string:username_da_seguire>', methods=['POST'])
+@utente.route('/<int:post_id>', methods=['DELETE'])
 @login_required
-def segui_utente(username_da_seguire):
-    if username_da_seguire == current_user.username:
-        flash('Non puoi seguire te stesso', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
-
-    utente_da_seguire = User.query.filter_by(username=username_da_seguire).first()
-
-    if not utente_da_seguire:
-        flash('L\'utente da seguire non esiste', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
-
-    if current_user.is_following(utente_da_seguire):
-        flash('Hai già iniziato a seguire questo utente', 'alert alert-warning')
-        return redirect(url_for('login.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
+def elimina_mi_piace(post_id):
+    current_user = request.json['current_user']
 
     try:
-        current_user.follow(utente_da_seguire)
-        db.session.commit()
-        flash(f'Adesso stai seguendo {username_da_seguire}', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Errore durante il seguimento dell\'utente: {str(e)}', 'alert alert-danger')
-    
-    return redirect(url_for('login.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+
+        # Verifica se il commento esiste e appartiene all'utente corrente
+        cursor.execute("SELECT * FROM post_likes WHERE posts_id = ? AND username = ?", (post_id, current_user))
+        commento = cursor.fetchone()
+        
+        if commento is None:
+            return jsonify({"message": "Commento non trovato o non autorizzato"}), 404
+        
+        # Elimina il commento
+        cursor.execute("DELETE FROM post_likes WHERE post_id = ?", (post_id))
+        
+        conn.commit()
+        return jsonify({"message": "Like eliminato con successo"}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": f"Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('home_utente.html', user=current_user)
+
+#------------------------------ seguire e accettare -------------------------------#
+
+    # inviare una richiesta ad una persona
+
+@utente.route('/richieste/<string:utente>', methods=['POST'])
+@login_required
+def invia_richiesta(utente):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        
+        # Inserisci una nuova richiesta di amicizia
+        cursor.execute("""
+            INSERT INTO amici (io_utente, user_amico, stato_richiesta)
+            VALUES (?, ?, ?)
+        """, (current_user, utente, 'in_attesa'))
+        
+        conn.commit()
+        return jsonify({"message": "Richiesta di amicizia inviata con successo"}), 201
+
+    except sqlite3.IntegrityError:
+        return jsonify({"message": "Errore: richiesta di amicizia già inviata o utente non esistente"}), 400
+
+    finally:
+        conn.close()
+        return render_template('profilo_amico.html', user=utente)
+
+    # accettare una richiesta
+
+@utente.route('/richieste/<string:utente>', methods=['POST'])
+@login_required
+def accetta_richiesta(utente):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        
+        # Aggiorna lo stato della richiesta di amicizia
+        cursor.execute("""
+            UPDATE amici
+            SET stato_richiesta = ?
+            WHERE io_utente = ? AND user_amico = ? AND stato_richiesta = ?
+        """, ('accettata', utente, current_user, 'in_attesa'))
+        
+        if cursor.rowcount == 0:
+            return jsonify({"message": "Errore: richiesta di amicizia non trovata o già accettata"}), 400
+        
+        conn.commit()
+        return jsonify({"message": "Richiesta di amicizia accettata con successo"}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": f"Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('profilo_amico.html', user=utente)
+
+    #rifiuta richiesta
+
+@utente.route('/richieste/<string:utente>', methods=['POST'])
+@login_required
+def rifiuta_richiesta(utente):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+        
+        # Aggiorna lo stato della richiesta di amicizia
+        cursor.execute("""
+            DELETE FROM amici 
+            WHERE stato= ? AND user_amico= ? AND io_utente=?
+        """, ('in attesa', utente, current_user))
+        
+        if cursor.rowcount == 0:
+            return jsonify({"message": "Errore: richiesta di amicizia non trovata o già accettata"}), 400
+        
+        conn.commit()
+        return jsonify({"message": "Richiesta di amicizia rifiutata con successo :) "}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": "Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('profilo_amico.html', user=utente)
+
 
 #------------------------------ ricerca utente -------------------------------#
 
@@ -269,3 +390,75 @@ def cerca_utente():
         return render_template('risultati_ricerca.html', risultati=risultati_ricerca, search_term=search_term)
     
     return render_template('cerca_utente.html')
+
+#------------------------------- rimuovere amici ---------------------------------#
+
+    # funzione per rimuovere persone dalle persone che ti seguono
+
+@utente.route('/rimuovi_follower/<string:follower>', methods=['DELETE'])
+@login_required
+def rimuovi_follower(follower):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+
+        # Verifica se il follower esiste e sta seguendo l'utente corrente
+        cursor.execute("""
+            SELECT * FROM amici WHERE user_amico = ? AND io_utente = ?
+        """, (current_user, follower))
+        follow = cursor.fetchone()
+        
+        if follow is None:
+            return jsonify({"message": "Follower non trovato"}), 404
+
+        # Rimuovi il follower
+        cursor.execute("""
+            DELETE FROM amici WHERE user_amico = ? AND io_utente = ?
+        """, (follower, current_user))
+        
+        conn.commit()
+        return jsonify({"message": "Follower rimosso con successo"}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": f"Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('lista_amici.html', user=current_user)
+
+    # funzione per smettere di seguire persone
+
+@utente.route('/smetti_di_seguire/<string:followed>', methods=['DELETE'])
+@login_required
+def smetti_di_seguire(follower):
+    current_user = request.json['current_user']
+
+    try:
+        conn = sqlite3.connect('database.db')
+        cursor = conn.cursor()
+
+        # Verifica se l'utente corrente sta seguendo la persona specificata
+        cursor.execute("""
+            SELECT * FROM amici WHERE user_amico = ? AND io_utente = ?
+        """, (follower, current_user))
+        follow = cursor.fetchone()
+        
+        if follow is None:
+            return jsonify({"message": "Non stai seguendo questa persona"}), 404
+
+        # Smetti di seguire la persona
+        cursor.execute("""
+            DELETE FROM amici WHERE user_amico = ? AND io_utente = ?
+        """, (follower, current_user))
+        
+        conn.commit()
+        return jsonify({"message": "Hai smesso di seguire questa persona"}), 200
+
+    except sqlite3.Error as e:
+        return jsonify({"message": f"Errore nel database: {e}"}), 500
+
+    finally:
+        conn.close()
+        return render_template('profilo_amici.html', user=follower)
