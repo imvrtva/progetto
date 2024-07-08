@@ -85,6 +85,99 @@ def pubblica(username):
 
     return redirect(url_for('utente.pubblica(username)'))
 
+@utente.route('/pubblica/testo/<username>', methods=['POST'])
+@login_required
+def post_testo(username):
+    contenuto = request.form.get('contenuto')
+    tipo_post = request.form.get('tipo_post')  # Assume che ci sia un campo 'tipo_post' nel form
+
+    if not contenuto:
+        flash('Il post non può essere vuoto', 'alert alert-warning')
+        return redirect(url_for('login.utente_home'))
+
+    nuovo_post = Post(
+        utente=current_user.username,
+        tipo_post=tipo_post,
+        data_creazione=datetime.now(),
+        testo=contenuto
+    )
+
+    try:
+        db.session.add(nuovo_post)
+        db.session.commit()
+        flash('Post pubblicato con successo', 'alert alert-success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
+
+    return redirect(url_for('utente.pubblica', username=username))
+
+@utente.route('/pubblica/video/<username>', methods=['POST'])
+@login_required
+
+def post_video(username):
+    file = request.files.get('video')
+    contenuto = request.form.get('contenuto')
+
+    if not file or file.filename == '':
+        flash('Nessun file selezionato', 'alert alert-warning')
+        return redirect(url_for('login.utente_home'))
+
+    filename = secure_filename(file.filename)
+    file.save(os.path.join('path/to/save', filename))  # Specifica il percorso dove salvare il file
+
+    nuovo_post = Post(
+        utente=current_user.username,
+        tipo_post='video',
+        data_creazione=datetime.now(),
+        testo=contenuto,
+        media=filename
+    )
+
+    try:
+        db.session.add(nuovo_post)
+        db.session.commit()
+        flash('Post di video pubblicato con successo', 'alert alert-success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
+
+    return redirect(url_for('utente.pubblica', username=username))
+
+@utente.route('/pubblica/immagine/<username>', methods=['POST'])
+@login_required
+
+def post_immagine(username):
+    file = request.files.get('photo')
+    contenuto = request.form.get('contenuto')
+
+    if not file or file.filename == '':
+        flash('Nessun file selezionato', 'alert alert-warning')
+        return redirect(url_for('login.utente_home'))
+
+    filename = secure_filename(file.filename)
+    file.save(os.path.join('path/to/save', filename))  # Specifica il percorso dove salvare il file
+
+    nuovo_post = Post(
+        utente=current_user.username,
+        tipo_post='immagine',
+        data_creazione=datetime.now(),
+        testo=contenuto,
+        media=filename
+    )
+
+    try:
+        db.session.add(nuovo_post)
+        db.session.commit()
+        flash('Post di immagine pubblicato con successo', 'alert alert-success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
+
+    return redirect(url_for('utente.pubblica', username=username))
+
+
+
 #------------------------------ inserimento commenti -------------------------------#
 
 @utente.route('/commenti/<string:utente>', methods=['POST'])
