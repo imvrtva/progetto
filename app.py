@@ -52,7 +52,6 @@ def create_tabledb(app):
         print('gia prensenti tebales') 
 
 
-
 def create_database():
 	try: 
 		con = psycopg2.connect(dbname='postgres',user=name, host='localhost',
