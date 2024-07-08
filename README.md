@@ -4,19 +4,23 @@
  consentendo alle aziende di promuovere i propri prodotti e servizi a un pubblico mirato. La piattaforma
  dovrebbe soddisfare sia gli utenti regolari che gli inserzionisti, con il sistema che tiene traccia degli annunci
  sui quali ogni utente clicca. Ecco le principali caratteristiche:
- • Gestione utenti: Implementare funzionalitá di autenticazione e autorizzazione degli utenti regolari
+  • Gestione utenti: Implementare funzionalitá di autenticazione e autorizzazione degli utenti regolari
  e degli inserzionisti. Gli utenti dovrebbero poter registrarsi, accedere e gestire i propri profili. Gli
  inserzionisti dovrebbero avere funzionalitá aggiuntive per gestire le proprie campagne pubblicitarie.
- • Gestione delle amicizie: Consentire agli utenti di connettersi tra loro, inviare richieste di amicizia e
+ 
+  • Gestione delle amicizie: Consentire agli utenti di connettersi tra loro, inviare richieste di amicizia e
  gestire la propria lista di amici. Gli utenti regolari dovrebbero poter interagire con i post (compresi i
  commenti) e i contenuti dei propri amici all’interno della piattaforma.
- • Condivisione dei Contenuti: Consentire agli utenti di creare e condividere (ad amici o al pubblico) vari
+ 
+  • Condivisione dei Contenuti: Consentire agli utenti di creare e condividere (ad amici o al pubblico) vari
  tipi di contenuti come testo, foto e video. Gli utenti dovrebbero poter mettere ”mi piace” e commentare
  i contenuti postati dai propri amici e da altri utenti nella rete.
- • Gestione degli annunci: Fornire agli inserzionisti la possibilitá di creare e gestire campagne pubblicitarie
+ 
+  • Gestione degli annunci: Fornire agli inserzionisti la possibilitá di creare e gestire campagne pubblicitarie
  all’interno della piattaforma. Gli inserzionisti dovrebbero poter definire criteri di targeting (in base
  alle caratteristiche dell’utente), durata e monitorare le performance dei loro annunci.
- • Gestiona avanzata annunci (Opzionale per gruppi inferiori a tre): implementare la possibilitá di im
+ 
+  • Gestiona avanzata annunci (Opzionale per gruppi inferiori a tre): implementare la possibilitá di im
 postare un budget per una particolare campagna (ogni click ricevuto costa). Impostare anche una
  prioritá agli annunci, annunci con prioritá piú elevata avranno piú probabilitá di venire visualizzati.
  OPzionalmente, implementare un semplice sistema di raccomandazione delle inserzioni (i.e. per definire
