@@ -54,7 +54,7 @@ def modifica_profilo():
 @login_required
 def post_testo(username):
     contenuto = request.form.get('contenuto')
-    tipo_post = request.form.get('testo')  # Assume che ci sia un campo 'tipo_post' nel form
+    tipo_post = request.form.get('tipo_post','testo')  # Assume che ci sia un campo 'tipo_post' nel form
 
     if not contenuto:
         flash('Il post non può essere vuoto', 'alert alert-warning')

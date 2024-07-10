@@ -1,7 +1,7 @@
 CREATE TYPE ruolo as ENUM('utente', 'pubblicitari');
 CREATE TYPE tipo_post as ENUM('immagini', 'video', 'testo');
 CREATE TYPE sesso as ENUM('maschio', 'femmina', 'altro');
-CREATE TYPE stato as ENUM('acettato', 'in attesa','non accettato');
+CREATE TYPE stato as ENUM('accettato', 'in attesa','non accettato');
 
 CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL PRIMARY KEY,
