@@ -1,8 +1,7 @@
 from flask import request, url_for, redirect, render_template, jsonify, Blueprint, flash
 from flask_login import login_required, current_user
-from py.create import *
-from py.function import *
-from py.create import User, posts, Comment, Like, Follow
+from .create import *
+from .function import *
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os

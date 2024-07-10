@@ -9,8 +9,8 @@ import subprocess
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from py.create import *  # Assicurati che le funzioni siano importate correttamente
-from py.login import log  # Importa il Blueprint 'log' dal modulo 'login'
-from py.registrazione import addprofile  # Assicurati che 'addprofile' sia importato correttamente
+from .login import log  # Importa il Blueprint 'log' dal modulo 'login'
+from .registrazione import addprofile  # Assicurati che 'addprofile' sia importato correttamente
 
 name = "postgres"
 password = "ciao"
