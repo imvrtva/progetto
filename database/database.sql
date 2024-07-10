@@ -1,11 +1,12 @@
-CREATE TYPE ruolo as ENUM('utente', 'pubblicitari');
-CREATE TYPE tipo_post as ENUM('immagini', 'video', 'testo');
-CREATE TYPE sesso as ENUM('maschio', 'femmina', 'altro');
-CREATE TYPE stato as ENUM('accettato', 'in attesa','non accettato');
+CREATE TYPE ruolo AS ENUM('utente', 'pubblicitari');
+CREATE TYPE tipo_post AS ENUM('immagini', 'video', 'testo');
+CREATE TYPE sesso AS ENUM('maschio', 'femmina', 'altro');
+CREATE TYPE stato AS ENUM('accettato', 'in attesa', 'non accettato');
+
 
 CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL PRIMARY KEY,
-    immagine BLOB
+    immagine BYTEA,  -- Utilizzo di BYTEA invece di BLOB su PostgreSQL
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
     password VARCHAR(100) NOT NULL,
@@ -14,6 +15,7 @@ CREATE TABLE users (
     eta INTEGER NOT NULL,
     ruolo ruolo
 );
+
 
 CREATE TABLE interessi (
     id_interessi SERIAL PRIMARY KEY,
@@ -28,18 +30,19 @@ CREATE TABLE user_interessi (
 
 CREATE TABLE amici (
     io_utente VARCHAR(50) REFERENCES users(username) PRIMARY KEY,
-    user_amico VARCHAR(50) REFERENCES users(username) PRIMARY KEY,
-    stato = stato
+    user_amico VARCHAR(50) REFERENCES users(username) ,
+    stato stato
 );
 
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
     utente VARCHAR(50) REFERENCES users(username),
-    media BLOB
+    media BYTEA,  -- Utilizzo di BYTEA invece di BLOB su PostgreSQL
     tipo_post tipo_post,
     data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     testo TEXT
 );
+
 
 CREATE TABLE post_comments (
     id SERIAL PRIMARY KEY,
@@ -98,7 +101,7 @@ CREATE TABLE target (
 CREATE OR REPLACE FUNCTION cascade_delete_post()
 RETURNS TRIGGER AS $$
 BEGIN
-   DELETE FROM comments WHERE post_id = OLD.id;
+   DELETE FROM post_comments WHERE post_id = OLD.id;
    DELETE FROM post_likes WHERE post_id = OLD.id;
    RETURN OLD;
 END;
@@ -107,6 +110,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER delete_post_cascade
 BEFORE DELETE ON posts
 FOR EACH ROW EXECUTE FUNCTION cascade_delete_post();
+
 
 /*---------------------------------------------------------------------------*/
 

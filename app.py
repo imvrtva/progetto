@@ -20,7 +20,7 @@ def create_app():
 	app = Flask(__name__)
 	create_database()
 	app.config['SECRET_KEY'] = 'stringasegreta'
-	app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://username:password@localhost/database_name'
+	app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://username:password@localhost/progettobasi'
 	app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 	print("\n richiama create_app\n")
 
@@ -56,8 +56,8 @@ def create_tabledb(app):
 
 def create_database():
 	try: 
-		con = psycopg2.connect(dbname='postgres',user=name, host='localhost',
-			password=password , port="5432")
+		con = psycopg2.connect(dbname='progettobasi',user=name, host='localhost',
+			password=password , port="5433")
 		con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT) 
 		cursor = con.cursor() 
 		exe = "create database "+namedb+";"
