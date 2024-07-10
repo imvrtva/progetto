@@ -6,9 +6,11 @@ from flask_bcrypt import Bcrypt
 import subprocess
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from .create import *
+
 name = "postgres"
 password = "ciao"
-namedb = "daisunive8"
+namedb = "progetto"
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -18,18 +20,18 @@ def create_app():
 	app = Flask(__name__)
 	create_database()
 	app.config['SECRET_KEY'] = 'stringasegreta'
-	app.config['SQLALCHEMY_DATABASE_URI']  = 'postgresql://'+name+':'+password+'@localhost:5432/'+namedb
-	SQLALCHEMY_TRACK_MODIFICATIONS = True
+	app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://username:password@localhost/database_name'
+	app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 	print("\n richiama create_app\n")
 
 	db.init_app(app)
-
 	create_tabledb(app)
 	
 	from .login import log
 	from .registrazione import addprofile
-	app.register_blueprint(login, url_prefix='/login')
-	app.register_blueprint(register, url_prefix='/registrazione')
+    
+	app.register_blueprint(log, url_prefix='/login')
+	app.register_blueprint(addprofile, url_prefix='/registrazione')
 	#login
 	login_manager.login_view = 'login.log'
 	login_manager.init_app(app)
@@ -63,6 +65,3 @@ def create_database():
 	except: 
 		print("\ndatabase gia presente\n")
 
-if __name__ == "__main__":
-    app = create_app()
-    app.run(debug=True)

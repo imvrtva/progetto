@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, flash, url_for, redirect, request
-from .create import db
-from .function import check_password, check_email, encode_pwd
+from create import db
+from function import check_password, check_email, encode_pwd
 from sqlalchemy.exc import IntegrityError
 
 register = Blueprint('register', __name__)

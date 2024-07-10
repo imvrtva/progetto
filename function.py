@@ -3,7 +3,9 @@
 from flask import Flask, request, url_for, redirect, render_template
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
 from datetime import datetime
-from .create import *
+from create import *
+from flask_bcrypt import bcrypt
+import re
 
 #---------------------------- password --------------------------#
 

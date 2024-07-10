@@ -3,7 +3,7 @@
 from flask import request, url_for, redirect, render_template, jsonify, Blueprint, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
-from flask_bcrypt import Bcrypt
+from flask_bcrypt import bcrypt
 from .create import *
 from .function import *
 
@@ -12,28 +12,28 @@ login = Blueprint('login', __name__)
 
 #------------------------------ accesso utente -------------------------------#
 
-@login.route('/', methods=['GET', 'POST'])
+@login.route('/login', methods=['GET', 'POST'])
 def log():
     if request.method == "POST":
         details = request.form
         email = details['email']
         pw = details['password']
 
-        result = db.engine.execute("SELECT * FROM user WHERE (email = %s)", (email))
+        result = db.engine.execute("SELECT * FROM user WHERE email = %s", (email,))
         queryUser = result.fetchone()
 
         if queryUser:
-            if decode_pwd(queryUser.password,pw):
-                user = utente(queryUser.username,queryUser.nome,queryUser.cognome,queryUser.password, queryUser.email,queryUser.sesso,queryUser.eta, queryUser.ruolo)
+            if check_password_hash(queryUser.password, pw):
+                user = utente(queryUser.username, queryUser.nome, queryUser.cognome, queryUser.password, queryUser.email, queryUser.sesso, queryUser.eta, queryUser.ruolo)
                 login_user(user)
                 role = current_user.ruolo
                 flash("Sei loggato", category='alert alert-success')
-                return redirect(url_for('login.'+ role))
+                return redirect(url_for(role))
             else:
                 flash("Password sbagliata", category="alert alert-warning")
                 return redirect(url_for('login.log'))
         else:
-            flash("Questa email non e`registrata", category="alert alert-warning")
+            flash("Questa email non è registrata", category="alert alert-warning")
             return redirect(url_for('login.log'))
     else:
         return render_template('template/login.html')
