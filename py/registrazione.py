@@ -3,11 +3,11 @@ from .create import db
 from .function import check_password, check_email, encode_pwd
 from sqlalchemy.exc import IntegrityError
 
-register = Blueprint('register', __name__)
+registrazione = Blueprint('registrazione', __name__)
 
 #------------------------------ registrazione utente -------------------------------#
 
-@register.route('/registrazione', methods=['GET', 'POST'])
+@registrazione.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
     if request.method == "GET":
         return render_template('registrazione.html')
@@ -45,7 +45,7 @@ def addprofile():
 	
 #------------------------------ interessi utente -------------------------------#
 
-@register.route('/registrazione/interessi', methods=['GET', 'POST'])
+@registrazione.route('/registrazione/interessi', methods=['GET', 'POST'])
 def interessi():
     if request.method == "GET":
         return render_template('interessi.html')

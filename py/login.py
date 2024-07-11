@@ -8,18 +8,18 @@ from py.create import *
 from py.function import *
 
 
-db = Blueprint('login', __name__)
+login = Blueprint('login', __name__)
 
 #------------------------------ accesso utente -------------------------------#
 
-@db.route('/', methods=['GET', 'POST'])
+@login.route('/', methods=['GET', 'POST'])
 def log():
     if request.method == "POST":
         details = request.form
         email = details['email']
         pw = details['password']
 
-        result = db.engine.execute("SELECT * FROM user WHERE email = %s", (email,))
+        result = db.engine.execute("SELECT * FROM users WHERE email = %s", (email))
         queryUser = result.fetchone()
 
         if queryUser:
@@ -36,11 +36,11 @@ def log():
             flash("Questa email non è registrata", category="alert alert-warning")
             return redirect(url_for('login.log'))  
     else:
-        return render_template('template/login.html')
+        return render_template('login.html')
 
 #------------------------------ logout utente -------------------------------#
 
-@db.route('/logout')
+@login.route('/logout')
 @login_required
 def logout():
     logout_user()
@@ -51,7 +51,7 @@ def logout():
 
     ## homepage utente
 
-@db.route('/utente/<string:username>', methods=['GET', 'POST'])
+@login.route('/utente/<string:username>', methods=['GET', 'POST'])
 @login_required
 def utente():
     if current_user.ruolo == 'utente':
@@ -65,7 +65,7 @@ def utente():
 
     ## homepage inserzionista
 
-@db.route('/inserzionista/<string:username>', methods=['GET', 'POST'])
+@login.route('/inserzionista/<string:username>', methods=['GET', 'POST'])
 @login_required
 def inserzionista():
     if current_user.ruolo == 'inserzionista':
