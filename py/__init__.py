@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -8,7 +6,7 @@ from flask_bcrypt import Bcrypt
 import subprocess
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from py.create import *  # Assicurati che le funzioni siano importate correttamente
+from py.create import db  # Assicurati che le funzioni siano importate correttamente
 from py.login import login  
 from .registrazione import registrazione  # Assicurati che 'addprofile' sia importato correttamente
 

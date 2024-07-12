@@ -12,23 +12,24 @@ login = Blueprint('login', __name__)
 
 #------------------------------ accesso utente -------------------------------#
 
-@login.route('/', methods=['GET', 'POST'])
+@login.route('/login', methods=['GET', 'POST'])
 def log():
     if request.method == "POST":
         details = request.form
         email = details['email']
         pw = details['password']
 
-        result = db.engine.execute("SELECT * FROM users WHERE email = %s", (email))
+        result = db.engine.execute("SELECT * FROM users WHERE email = %s", (email,))
         queryUser = result.fetchone()
 
         if queryUser:
-            if check_password_hash(queryUser.password, pw):
+            if bcrypt.check_password_hash(queryUser.password, pw):
                 user = utente(queryUser.username, queryUser.nome, queryUser.cognome, queryUser.password, queryUser.email, queryUser.sesso, queryUser.eta, queryUser.ruolo)
                 login_user(user)
-                role = current_user.ruolo
-                flash("Sei loggato", category='alert alert-success')
-                return redirect(url_for(role))
+                if user.ruolo == 'utente':
+                    return redirect(url_for('login.utente', username=user.username))
+                elif user.ruolo == 'inserzionista':
+                    return redirect(url_for('login.inserzionista', username=user.username))
             else:
                 flash("Password sbagliata", category="alert alert-warning")
                 return redirect(url_for('login.log'))  
@@ -37,6 +38,7 @@ def log():
             return redirect(url_for('login.log'))  
     else:
         return render_template('login.html')
+
 
 #------------------------------ logout utente -------------------------------#
 
@@ -55,7 +57,7 @@ def logout():
 @login_required
 def utente():
     if current_user.ruolo == 'utente':
-        return render_template("template/home_utente.html")
+        return render_template("home_utente.html")
     else:
         flash("Accesso non autorizzato", category="alert alert-warning")
         return redirect(url_for('login.log'))
