@@ -24,18 +24,20 @@ def log():
 
         if queryUser:
             if bcrypt.check_password_hash(queryUser.password, pw):
-                user = utente(queryUser.username, queryUser.nome, queryUser.cognome, queryUser.password, queryUser.email, queryUser.sesso, queryUser.eta, queryUser.ruolo)
+                user = utente(queryUser.username, queryUser.nome, queryUser.cognome, 
+                              queryUser.password, queryUser.email, queryUser.sesso, 
+                              queryUser.eta, queryUser.ruolo)
                 login_user(user)
                 if user.ruolo == 'utente':
-                    return redirect(url_for('login.utente', username=user.username))
+                    return redirect(url_for('utente', username=user.username))
                 elif user.ruolo == 'inserzionista':
-                    return redirect(url_for('login.inserzionista', username=user.username))
+                    return redirect(url_for('inserzionista', username=user.username))
             else:
                 flash("Password sbagliata", category="alert alert-warning")
-                return redirect(url_for('login.log'))  
+                return redirect(url_for('log'))  
         else:
             flash("Questa email non è registrata", category="alert alert-warning")
-            return redirect(url_for('login.log'))  
+            return redirect(url_for('log'))  
     else:
         return render_template('login.html')
 
