@@ -9,7 +9,7 @@ CREATE TABLE users (
     immagine BYTEA,  -- Utilizzo di BYTEA invece di BLOB su PostgreSQL
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
-    password VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     sesso sesso,
     eta INTEGER NOT NULL,

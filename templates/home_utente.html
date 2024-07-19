@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ user.username }}'s Home</title>
+</head>
+<body>
+    <h1>Welcome, {{ user.username }}!</h1>
+
+    <h2>Posts from people you follow:</h2>
+    {% if posts %}
+        <ul>
+            {% for post in posts %}
+                <li>
+                    <h3>{{ post.title }}</h3>
+                    <p>{{ post.content }}</p>
+                    <small>By {{ post.author.username }}</small>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No posts to display.</p>
+    {% endif %}
+</body>
+</html>
