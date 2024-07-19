@@ -251,7 +251,19 @@ def logout():
 @login_required
 def utente(username):
     user = Users.query.filter_by(username=username).first()
-    return render_template('home_utente.html', user=user)
+    
+    # Verifica se l'utente esiste
+    if not user:
+        flash("Utente non trovato", category="alert alert-danger")
+        return redirect(url_for('log'))
+
+    # Recupera gli utenti che l'utente corrente segue
+    seguiti = [amico.user_amico for amico in Amici.query.filter_by(io_utente=username, stato=Stato.accettato).all()]
+
+    # Recupera i post degli utenti seguiti
+    posts = Post.query.filter(Post.utente.in_(seguiti)).order_by(Post.data_creazione.desc()).all()
+
+    return render_template('home_utente.html', user=user, posts=posts)
 
 @app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
 @login_required
