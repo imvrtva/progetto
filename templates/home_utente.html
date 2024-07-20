@@ -13,7 +13,7 @@
                     <li class="post-item mb-3">
                         <div class="card">
                             <div class="card-body">
-                                <h5 class="card-title">{{ post.utente }}</h5>
+                                <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
                                 <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
                                 {% if post.media %}
                                     <img src="{{ url_for('static', filename=post.media) }}" class="img-fluid" alt="Media">

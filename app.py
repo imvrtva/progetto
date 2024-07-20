@@ -1,4 +1,4 @@
-from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify, session
+from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Text, BLOB, ForeignKey, TIMESTAMP, Date, func
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
@@ -18,6 +18,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
+UPLOAD_FOLDER = 'contenuti'
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -50,7 +53,7 @@ class Users(UserMixin, db.Model):
 
     id_utente = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False)
-    immagine = Column(BLOB, nullable=True)
+    immagine = Column(String(100), nullable=True)
     nome = Column(String(50), unique=False, nullable=False)
     cognome = Column(String(50), unique=False, nullable=False)
     password_hash = Column(String(150), nullable=False)  # Changed to password_hash
@@ -205,6 +208,20 @@ with app.app_context():
 
 #------------------------ funzioni utili -------------------------#
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@property
+def follower_count(self):
+    return Amici.query.filter_by(user_amico=self.id_utente, stato=Stato.accettato).count()
+
+@property
+def following_count(self):
+    return Amici.query.filter_by(io_utente=self.id_utente, sstato=Stato.accettato).count()
+
+@property
+def post_count(self):
+    return Post.query.filter_by(user_id=self.id_utente).count()
 
 ##controllo password
 def check_password(password):
@@ -275,7 +292,11 @@ def utente(id_utente):
     # Recupera i post degli utenti seguiti
     posts = Post.query.filter(Post.utente.in_(seguiti)).order_by(Post.data_creazione.desc()).all()
 
-    return render_template('home_utente.html', user=user, posts=posts)
+    # Recupera gli utenti in una sola query
+    utenti = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti)).all()}
+
+
+    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti)
 
 
 @app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
@@ -364,10 +385,31 @@ def interessi():
 @app.route('/profilo', methods=['GET', 'POST'])
 @login_required
 def profilo():
+    # Recupera l'utente corrente
     user = current_user
     
+    posts = Post.query.filter_by(utente=user.id_utente).all()
+    follower_count = Amici.query.filter_by(user_amico=user.id_utente, stato=Stato.accettato).count()
+    
+    # Calcola il numero di seguiti
+    following_count = Amici.query.filter_by(io_utente=user.id_utente, stato=Stato.accettato).count()
+    
+    # Calcola il numero di post
+    post_count = len(posts)
+    # Rende il template profilo_io.html con i dati dell'utente
+    return render_template('profilo_io.html', user=user, posts=posts, follower_count=follower_count,
+                           following_count=following_count,
+                           post_count=post_count)
+
+from sqlalchemy.exc import IntegrityError
+
+@app.route('/modifica', methods=['GET', 'POST'])
+@login_required
+def modifica_profilo():
+    user = Users.query.get(current_user.id_utente)  # Assumi che current_user abbia l'id_utente
+
     if request.method == 'POST':
-        # Recupera i dati dal form
+        # Gestione della richiesta POST
         username = request.form.get('username')
         nome = request.form.get('nome')
         cognome = request.form.get('cognome')
@@ -375,9 +417,13 @@ def profilo():
         sesso = request.form.get('sesso')
         eta = request.form.get('eta')
         ruolo = request.form.get('ruolo')
-        
-        # Validazione e aggiornamento dei dati
-        if username and email and nome and cognome:
+        immagine = request.files.get('immagine')
+
+        if not all([username, nome, cognome, email, sesso, eta, ruolo]):
+            flash('Tutti i campi sono obbligatori.', 'alert alert-danger')
+            return redirect(url_for('modifica_profilo'))
+
+        if user:
             user.username = username
             user.nome = nome
             user.cognome = cognome
@@ -385,66 +431,25 @@ def profilo():
             user.sesso = sesso
             user.eta = eta
             user.ruolo = ruolo
-            
-            try:
-                db.session.commit()
-                flash("Profilo aggiornato con successo", category="alert alert-success")
-            except Exception as e:
-                db.session.rollback()
-                flash("Errore durante l'aggiornamento del profilo: " + str(e), category="alert alert-danger")
+
+            if immagine and allowed_file(immagine.filename):
+                filename = secure_filename(immagine.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                immagine.save(filepath)
+                user.immagine = filename
+
+            db.session.commit()
+            flash('Profilo aggiornato con successo!', 'alert alert-success')
         else:
-            flash("Tutti i campi sono obbligatori", category="alert alert-warning")
+            flash('Utente non trovato', 'alert alert-danger')
 
         return redirect(url_for('profilo'))
-    
-    return render_template('profilo_io.html', user=user)
 
-from sqlalchemy.exc import IntegrityError
+    return render_template('modifica_profilo.html', user=user)
 
-@app.route('/modifica', methods=['GET', 'POST'])
-@login_required
-def modifica_profilo():
-    if request.method == 'POST':
-        new_username = request.form.get('username')
-        nome = request.form.get('nome')
-        cognome = request.form.get('cognome')
-        email = request.form.get('email')
-        sesso = request.form.get('sesso')
-        eta = request.form.get('eta')
-        ruolo = request.form.get('ruolo')
-
-        # Verifica se il campo username è stato modificato
-        if not new_username:
-            flash("Username non valido.", "alert alert-danger")
-            return redirect(url_for('modifica_profilo'))
-
-        try:
-            # Trova l'utente corrente
-            user = Users.query.filter_by(username=current_user.username).first()
-            if user:
-                # Aggiorna i dettagli dell'utente
-                user.username = new_username
-                user.nome = nome
-                user.cognome = cognome
-                user.email = email
-                user.sesso = sesso
-                user.eta = eta
-                user.ruolo = ruolo
-
-                # Salva le modifiche nel database
-                db.session.commit()
-                flash("Profilo aggiornato con successo!", "alert alert-success")
-                return redirect(url_for('profilo'))
-            else:
-                flash("Utente non trovato.", "alert alert-danger")
-                return redirect(url_for('profilo'))
-        except IntegrityError:
-            db.session.rollback()
-            flash("Errore durante l'aggiornamento del profilo.", "alert alert-danger")
-
-    return render_template('modifica_profilo.html', user=current_user)
-
-
+@app.route('/contenuti/<filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 #------------------------------ pubblicazione post -------------------------------#

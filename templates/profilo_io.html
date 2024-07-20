@@ -3,41 +3,113 @@
 {% block title %}Profilo Utente{% endblock %}
 
 {% block content %}
-<div class="profile-header d-flex align-items-center mb-4">
-    <img src="{{ user.foto_profilo or url_for('static', filename='default_profile.png') }}" alt="Foto Profilo" class="profile-img rounded-circle">
-    <div class="profile-info ml-3">
-        <h2>{{ user.nome }} {{ user.cognome }}</h2>
-        <p>@{{ user.username }}</p>
-        <div class="profile-stats d-flex justify-content-between">
-            <div>
-                <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
-                Follower
+<div class="container mt-6">
+    <!-- Profilo Header -->
+    <div class="profile-header d-flex align-items-center mb-4">
+        <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
+             alt="Foto Profilo" class="profile-img rounded-circle" 
+             style="width: 120px; height: 120px; object-fit: cover;">
+        <div class="profile-info ml-3">
+            <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
+            <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
+            <p class="text-muted mb-2">@{{ user.username }}</p>
+            <div class="profile-stats d-flex justify-content-between mt-3">
+                <div class="text-center">
+                    <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
+                    Follower
+                </div>
+                <div class="text-center">
+                    <span class="d-block font-weight-bold">{{ user.following_count }}</span>
+                    Seguiti
+                </div>
+                <div class="text-center">
+                    <span class="d-block font-weight-bold">{{ user.post_count }}</span>
+                    Post
+                </div>
             </div>
-            <div>
-                <span class="d-block font-weight-bold">{{ user.seguendo_count }}</span>
-                Seguiti
-            </div>
-            <div>
-                <span class="d-block font-weight-bold">{{ user.post_count }}</span>
-                Post
-            </div>
+            <p class="bio mt-3">{{ user.biografia or "Nessuna biografia" }}</p>
+            <form method="POST" action="{{ url_for('modifica_profilo') }}">
+                <button type="submit" class="btn btn-primary">Modifica Profilo</button>
+            </form>
         </div>
-        <p class="bio mt-2">{{ user.biografia or "Nessuna biografia" }}</p>
-        <form method="POST" action="{{ url_for('modifica_profilo') }}">
-            <button type="submit" class="btn btn-primary">Modifica Profilo</button>
-        </form>
+    </div>
+
+    <!-- Post Pubblicati -->
+    <h2 class="mt-4 mb-3 font-weight-bold">Post Pubblicati</h2>
+    <div class="row">
+        {% if posts %}
+            {% for post in posts %}
+                <div class="col-md-4 mb-4">
+                    <div class="card border-0 shadow-sm">
+                        {% if post.media %}
+                            <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
+                        {% endif %}
+                        <div class="card-body">
+                            <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                        </div>
+                        <div class="card-footer text-muted text-center border-0 bg-light">
+                            {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-center">Non ci sono post pubblicati.</p>
+        {% endif %}
     </div>
 </div>
-
-<h2>Post Pubblicati</h2>
-<ul class="post-list list-unstyled">
-    {% if posts %}
-        {% for post in posts %}
-            <li class="mb-3">
-                <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="img-fluid">
-            </li>
-        {% endfor %}
-    {% else %}
-        <p>Non ci sono post pubblicati.</p>
-    {% endif %}
 {% endblock %}
+
+<style>
+    .container {
+        padding-top: 500px; /* Aggiungi spazio sopra il contenuto per evitare che sia coperto */
+    }
+    
+    .profile-header {
+        border-bottom: 1px solid #e6e6e6;
+        padding-bottom: 20px;
+    }
+
+    .profile-img {
+        border: 2px solid #ddd;
+        background-color: #fff;
+    }
+
+    .profile-info {
+        max-width: 500px;
+    }
+
+    .profile-stats div {
+        font-size: 0.9rem;
+    }
+
+    .bio {
+        font-style: italic;
+        color: #333;
+    }
+
+    .card-img-top {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+
+    .card-body {
+        padding: 15px;
+    }
+
+    .card-footer {
+        font-size: 0.8rem;
+    }
+
+    .btn-primary {
+        background-color: #0095f6;
+        border-color: #0095f6;
+    }
+
+    .btn-primary:hover {
+        background-color: #007bb5;
+        border-color: #007bb5;
+    }
+</style>
+

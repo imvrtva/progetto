@@ -15,7 +15,7 @@
         {% endif %}
     {% endwith %}
 
-    <form method="POST" action="{{ url_for('modifica_profilo') }}">
+    <form method="POST" action="{{ url_for('modifica_profilo') }}" enctype="multipart/form-data">
         <div class="form-group">
             <label for="username">Username:</label>
             <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
@@ -50,6 +50,10 @@
                 <option value="utente" {% if user.ruolo == 'utente' %}selected{% endif %}>Utente</option>
                 <option value="inserzionista" {% if user.ruolo == 'inserzionista' %}selected{% endif %}>Inserzionista</option>
             </select>
+        </div>
+        <div class="form-group">
+            <label for="immagine">Foto Profilo:</label>
+            <input type="file" class="form-control" id="immagine" name="immagine">
         </div>
         <button type="submit" class="btn btn-primary">Aggiorna Profilo</button>
     </form>
