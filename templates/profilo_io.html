@@ -1,1 +1,43 @@
-ciao
+{% extends "base.html" %}
+
+{% block title %}Profilo Utente{% endblock %}
+
+{% block content %}
+<div class="profile-header d-flex align-items-center mb-4">
+    <img src="{{ user.foto_profilo or url_for('static', filename='default_profile.png') }}" alt="Foto Profilo" class="profile-img rounded-circle">
+    <div class="profile-info ml-3">
+        <h2>{{ user.nome }} {{ user.cognome }}</h2>
+        <p>@{{ user.username }}</p>
+        <div class="profile-stats d-flex justify-content-between">
+            <div>
+                <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
+                Follower
+            </div>
+            <div>
+                <span class="d-block font-weight-bold">{{ user.seguendo_count }}</span>
+                Seguiti
+            </div>
+            <div>
+                <span class="d-block font-weight-bold">{{ user.post_count }}</span>
+                Post
+            </div>
+        </div>
+        <p class="bio mt-2">{{ user.biografia or "Nessuna biografia" }}</p>
+        <form method="POST" action="{{ url_for('modifica_profilo') }}">
+            <button type="submit" class="btn btn-primary">Modifica Profilo</button>
+        </form>
+    </div>
+</div>
+
+<h2>Post Pubblicati</h2>
+<ul class="post-list list-unstyled">
+    {% if posts %}
+        {% for post in posts %}
+            <li class="mb-3">
+                <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="img-fluid">
+            </li>
+        {% endfor %}
+    {% else %}
+        <p>Non ci sono post pubblicati.</p>
+    {% endif %}
+{% endblock %}

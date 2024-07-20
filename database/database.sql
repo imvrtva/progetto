@@ -5,7 +5,8 @@ CREATE TYPE stato AS ENUM('accettato', 'in attesa', 'non accettato');
 
 
 CREATE TABLE users (
-    username VARCHAR(50) UNIQUE NOT NULL PRIMARY KEY,
+    id_utente SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
     immagine BYTEA,  -- Utilizzo di BYTEA invece di BLOB su PostgreSQL
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
@@ -23,45 +24,51 @@ CREATE TABLE interessi (
 );
 
 CREATE TABLE user_interessi (
-    username VARCHAR(50) REFERENCES users(username),
+    utente_id INTEGER REFERENCES users(id_utente),
     id_interessi INTEGER REFERENCES interessi(id_interessi),
-    PRIMARY KEY (username, id_interessi)
+    PRIMARY KEY (utente_id, id_interessi)
 );
 
+
 CREATE TABLE amici (
-    io_utente VARCHAR(50) REFERENCES users(username) PRIMARY KEY,
-    user_amico VARCHAR(50) REFERENCES users(username) ,
-    stato stato
+    io_utente INTEGER REFERENCES users(id_utente),
+    user_amico INTEGER REFERENCES users(id_utente),
+    stato stato,
+    PRIMARY KEY (io_utente, user_amico)
 );
+
 
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
-    utente VARCHAR(50) REFERENCES users(username),
-    media BYTEA,  -- Utilizzo di BYTEA invece di BLOB su PostgreSQL
+    utente INTEGER REFERENCES users(id_utente),
+    media BYTEA,
     tipo_post tipo_post,
     data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     testo TEXT
 );
 
 
+
 CREATE TABLE post_comments (
     id SERIAL PRIMARY KEY,
     post_id INTEGER REFERENCES posts(id),
-    utentec VARCHAR(50) REFERENCES users(username),
+    utente_id INTEGER REFERENCES users(id_utente),
     content TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE post_likes (
     post_id INTEGER REFERENCES posts(id),
-    username VARCHAR(50) REFERENCES users(username),
+    utente_id INTEGER REFERENCES users(id_utente),
     clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (post_id, username)
+    PRIMARY KEY (post_id, utente_id)
 );
+
 
 CREATE TABLE annunci (
     id SERIAL PRIMARY KEY,
-    advertiser VARCHAR(50) REFERENCES users(username),
+    advertiser_id INTEGER REFERENCES users(id_utente),
     tipo_post tipo_post,
     sesso_target sesso,
     eta_target INTEGER,
@@ -72,18 +79,20 @@ CREATE TABLE annunci (
 
 CREATE TABLE annunci_likes (
     annuncio_id INTEGER REFERENCES annunci(id),
-    username VARCHAR(50) REFERENCES users(username),
+    utente_id INTEGER REFERENCES users(id_utente),
     clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (annuncio_id, username)
+    PRIMARY KEY (annuncio_id, utente_id)
 );
+
 
 CREATE TABLE annunci_comments (
     id SERIAL PRIMARY KEY,
     annuncio_id INTEGER REFERENCES annunci(id),
-    utentec VARCHAR(50) REFERENCES users(username),
+    utente_id INTEGER REFERENCES users(id_utente),
     content TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 CREATE TABLE target (
     id SERIAL PRIMARY KEY,
@@ -91,6 +100,7 @@ CREATE TABLE target (
     eta INTEGER,
     interesse INTEGER REFERENCES interessi(id_interessi)
 );
+
 
 
 /*TRIGGHER*/
@@ -112,6 +122,7 @@ BEFORE DELETE ON posts
 FOR EACH ROW EXECUTE FUNCTION cascade_delete_post();
 
 
+
 /*---------------------------------------------------------------------------*/
 
 -- Trigger per aggiornare automaticamente il timestamp di modifica
@@ -123,14 +134,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Applicazione del trigger alle tabelle posts e comments
 CREATE TRIGGER update_posts_timestamp
 BEFORE UPDATE ON posts
 FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
 CREATE TRIGGER update_comments_timestamp
-BEFORE UPDATE ON comments
+BEFORE UPDATE ON post_comments
 FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+
 
 /*---------------------------------------------------------------------------*/
 
@@ -147,6 +158,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER delete_annuncio_cascade
 BEFORE DELETE ON annunci
 FOR EACH ROW EXECUTE FUNCTION cascade_delete_annuncio();
+
 
 /*---------------------------------------------------------------------------*/
 
@@ -171,8 +183,8 @@ FOR EACH ROW EXECUTE FUNCTION validate_user_age();
 CREATE OR REPLACE FUNCTION cascade_delete_user_followers()
 RETURNS TRIGGER AS $$
 BEGIN
-    DELETE FROM followers WHERE follower_username = OLD.username;
-    DELETE FROM followers WHERE followed_username = OLD.username;
+    DELETE FROM user_follows WHERE follower_id = OLD.id_utente;
+    DELETE FROM user_follows WHERE followed_id = OLD.id_utente;
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
@@ -180,3 +192,4 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER delete_user_followers_cascade
 BEFORE DELETE ON users
 FOR EACH ROW EXECUTE FUNCTION cascade_delete_user_followers();
+

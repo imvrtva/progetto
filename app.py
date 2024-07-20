@@ -1,4 +1,4 @@
-from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify
+from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Text, BLOB, ForeignKey, TIMESTAMP, Date, func
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
@@ -12,6 +12,7 @@ from werkzeug.utils import secure_filename
 import sqlite3
 from datetime import datetime
 
+#------------------------ accesso server -------------------------#
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'stringasegreta'
@@ -25,8 +26,8 @@ login_manager.init_app(app)
 bcrypt = Bcrypt(app)
 
 @login_manager.user_loader
-def load_user(username):
-    return Users.query.filter_by(username=username).first()
+def load_user(user_id):
+    return Users.query.get(int(user_id))
 
 #------------------------ creazione database -------------------------#
 
@@ -47,7 +48,8 @@ class Stato(Enum):
 class Users(UserMixin, db.Model):
     __tablename__ = 'users'
 
-    username = Column(String(50), unique=True, nullable=False, primary_key=True)
+    id_utente = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False)
     immagine = Column(BLOB, nullable=True)
     nome = Column(String(50), unique=False, nullable=False)
     cognome = Column(String(50), unique=False, nullable=False)
@@ -58,7 +60,8 @@ class Users(UserMixin, db.Model):
     ruolo = Column(SQLAlchemyEnum(Ruolo))
 
 
-    def __init__(self, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None):
+    def __init__(self,id_utente, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None):
+        self.id_utente = id_utente
         self.username = username
         self.immagine = immagine
         self.nome = nome
@@ -71,7 +74,7 @@ class Users(UserMixin, db.Model):
 
     # Property for password handling
     def get_id(self):
-        return self.username
+        return self.id_utente
 
     @property
     def password(self):
@@ -100,7 +103,7 @@ class Interessi(db.Model, UserMixin):
 class UserInteressi(db.Model, UserMixin):
     __tablename__ = 'user_interessi'
 
-    utente = Column(String(50), ForeignKey('users.username'), nullable=False, primary_key=True)
+    utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     id_interessi = Column(Integer, ForeignKey('interessi.id_interessi'), nullable=False, primary_key=True)
 
     def __init__(self, utente, id_interessi):
@@ -110,8 +113,8 @@ class UserInteressi(db.Model, UserMixin):
 class Amici(db.Model, UserMixin):
     __tablename__ = 'amici'
 
-    io_utente = Column(String(50), ForeignKey('users.username'), nullable=False, primary_key=True)
-    user_amico = Column(String(50), ForeignKey('users.username'), nullable=False, primary_key=True)
+    io_utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
+    user_amico = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     stato = Column(SQLAlchemyEnum(Stato))
 
     def __init__(self, io_utente, user_amico, stato):
@@ -123,7 +126,7 @@ class Post(db.Model, UserMixin):
     __tablename__ = 'posts'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    utente = Column(String(50), ForeignKey('users.username'), nullable=False)
+    utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     media = Column(BLOB, nullable=True)
     tipo_post = Column(SQLAlchemyEnum('immagini', 'video', 'testo', name='tipo_post'))
     data_creazione = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
@@ -143,7 +146,7 @@ class PostComments(db.Model, UserMixin):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     post_id = Column(Integer, ForeignKey('posts.id'))
-    utentec = Column(String(50), ForeignKey('users.username'), nullable=False)
+    utentec = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     content = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
@@ -155,21 +158,21 @@ class PostComments(db.Model, UserMixin):
 class PostLikes(db.Model, UserMixin):
     __tablename__ = 'post_likes'
 
-    post_id = Column(Integer, ForeignKey('posts.id'), primary_key=True, autoincrement=True)
-    username = Column(String(50), ForeignKey('users.username'), primary_key=True, nullable=False)
+    post_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Modificato in user_id
     content = Column(Text, nullable=True)
     clicked_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, post_id, username, content=None):
+    def __init__(self, post_id, user_id, content=None):
         self.post_id = post_id
-        self.username = username
+        self.user_id = user_id
         self.content = content
 
 class Annunci(db.Model, UserMixin):
     __tablename__ = 'annunci'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    advertiser = Column(String(50), ForeignKey('users.username'), nullable=False)
+    advertiser = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     tipo_post = Column(SQLAlchemyEnum('immagini', 'video', 'testo', name='tipo_post'))
     sesso_target = Column(SQLAlchemyEnum(Sesso))
     eta_target = Column(Integer, unique=False, nullable=False)
@@ -188,13 +191,13 @@ class Annunci(db.Model, UserMixin):
 class AnnunciLikes(db.Model, UserMixin):
     __tablename__ = 'annunci_likes'
 
-    annuncio_id = Column(Integer, ForeignKey('annunci.id'), primary_key=True, autoincrement=True)
-    username = Column(String(50), ForeignKey('users.username'), primary_key=True, nullable=False)
+    annuncio_id = Column(Integer, ForeignKey('annunci.id'), primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Modificato in user_id
     clicked_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, annuncio_id, username):
+    def __init__(self, annuncio_id, user_id):
         self.annuncio_id = annuncio_id
-        self.username = username
+        self.user_id = user_id
 
 # Ensure all tables are created within the application context
 with app.app_context():
@@ -226,44 +229,54 @@ def log():
         password = request.form['password']
 
         user = Users.query.filter_by(email=email).first()
-        if user:
-            if user.verify_password(password):
-                login_user(user)
-                if user.ruolo == Ruolo.utente:
-                    return redirect(url_for('utente', username=user.username))
-                elif user.ruolo == Ruolo.pubblicitari:
-                    return redirect(url_for('inserzionista', username=user.username))
-            else:
-                flash("Password sbagliata", category="alert alert-warning")
-                return redirect(url_for('log'))
+        if user and user.verify_password(password):
+            login_user(user)
+            session['id_utente'] = user.id_utente
+            session['role'] = user.ruolo.value
+
+            if user.ruolo == Ruolo.utente:
+                return redirect(url_for('utente', id_utente=user.id_utente))
+            elif user.ruolo == Ruolo.pubblicitari:
+                return redirect(url_for('inserzionista', id_utente=user.id_utente))
         else:
-            flash("Questa email non è registrata", category="alert alert-warning")
+            flash("Email o password sbagliata", category="alert alert-warning")
             return redirect(url_for('log'))
+
     return render_template('login.html')
+
 
 @app.route('/logout')
 @login_required
 def logout():
+    logout_user()
+    session.pop('username', None)
+    session.pop('role', None)
     flash("Logout effettuato con successo", category='alert alert-success')
     return redirect(url_for('log'))
 
-@app.route('/homepage/utente/<username>', methods=['GET', 'POST'])
+
+@app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
-def utente(username):
-    user = Users.query.filter_by(username=username).first()
-    
+def utente(id_utente):
+    # Recupera l'utente con il nome utente passato come parametro
+    user = Users.query.filter_by(id_utente=id_utente).first()
+
     # Verifica se l'utente esiste
     if not user:
         flash("Utente non trovato", category="alert alert-danger")
         return redirect(url_for('log'))
 
-    # Recupera gli utenti che l'utente corrente segue
-    seguiti = [amico.user_amico for amico in Amici.query.filter_by(io_utente=username, stato=Stato.accettato).all()]
+    # Recupera l'ID dell'utente corrente
+    current_user_id = current_user.id_utente
+
+    # Recupera gli utenti seguiti dall'utente corrente
+    seguiti = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id, stato=Stato.accettato).all()]
 
     # Recupera i post degli utenti seguiti
     posts = Post.query.filter(Post.utente.in_(seguiti)).order_by(Post.data_creazione.desc()).all()
 
     return render_template('home_utente.html', user=user, posts=posts)
+
 
 @app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
 @login_required
@@ -299,7 +312,7 @@ def addprofile():
                 username=username,
                 nome=nome,
                 cognome=cognome,
-                password=password,
+                password_hash=password,  # Assuming you have a mechanism to hash passwords
                 email=email,
                 sesso=sesso,
                 eta=eta,
@@ -308,7 +321,9 @@ def addprofile():
             db.session.add(user)
             db.session.commit()
             flash("Registrazione riuscita", category="alert alert-success")
-            # Dopo la registrazione, reindirizza alla pagina degli interessi
+            # Store the username in the session
+            session['new_user'] = username
+            # Redirect to the interests selection page
             return redirect(url_for('interessi'))
         except IntegrityError:
             db.session.rollback()
@@ -317,7 +332,7 @@ def addprofile():
 
     return render_template('registrazione.html')
 
-@app.route('/registrazione/interessi', methods=['GET', 'POST'])
+@app.route('/interessi', methods=['GET', 'POST'])
 def interessi():
     if request.method == "GET":
         return render_template('interessi.html')
@@ -327,49 +342,110 @@ def interessi():
         errore = False
 
         try:
-            username = current_user 
+            # Retrieve the username from the session
+            username = session.get('new_user')
+            if not username:
+                flash("Errore: Nessun utente trovato. Per favore, registra prima un account.", category="alert alert-warning")
+                return redirect(url_for('registrazione'))
+            
             for interesse in interessi:
-                db.engine.execute("INSERT INTO user_interessi (username, id_interessi) VALUES (%s, %s)", (username, interesse))
+                user_interesse = UserInteressi(utente=username, id_interessi=interesse)
+                db.session.add(user_interesse)
+            db.session.commit()
             flash("Interessi aggiunti correttamente", category="alert alert-success")
         except IntegrityError:
+            db.session.rollback()
             flash("Errore nell'aggiunta degli interessi", category="alert alert-warning")
             return render_template('interessi.html')
 
-        # Dopo aver aggiunto gli interessi, reindirizza alla pagina di login
+        # Redirect to the login page after adding interests
         return redirect(url_for('login.log'))
 
-@app.route('/<string:username>/modifica_profilo', methods=['GET', 'POST'])
+@app.route('/profilo', methods=['GET', 'POST'])
+@login_required
+def profilo():
+    user = current_user
+    
+    if request.method == 'POST':
+        # Recupera i dati dal form
+        username = request.form.get('username')
+        nome = request.form.get('nome')
+        cognome = request.form.get('cognome')
+        email = request.form.get('email')
+        sesso = request.form.get('sesso')
+        eta = request.form.get('eta')
+        ruolo = request.form.get('ruolo')
+        
+        # Validazione e aggiornamento dei dati
+        if username and email and nome and cognome:
+            user.username = username
+            user.nome = nome
+            user.cognome = cognome
+            user.email = email
+            user.sesso = sesso
+            user.eta = eta
+            user.ruolo = ruolo
+            
+            try:
+                db.session.commit()
+                flash("Profilo aggiornato con successo", category="alert alert-success")
+            except Exception as e:
+                db.session.rollback()
+                flash("Errore durante l'aggiornamento del profilo: " + str(e), category="alert alert-danger")
+        else:
+            flash("Tutti i campi sono obbligatori", category="alert alert-warning")
+
+        return redirect(url_for('profilo'))
+    
+    return render_template('profilo_io.html', user=user)
+
+from sqlalchemy.exc import IntegrityError
+
+@app.route('/modifica', methods=['GET', 'POST'])
 @login_required
 def modifica_profilo():
     if request.method == 'POST':
-        details = request.form
-        new_username = details.get('username')
-        new_nome = details.get('nome', current_user.nome)
-        new_cognome = details.get('cognome', current_user.cognome)
-        new_sesso = details.get('sesso', current_user.sesso)
-        new_eta = details.get('eta', current_user.eta)
+        new_username = request.form.get('username')
+        nome = request.form.get('nome')
+        cognome = request.form.get('cognome')
+        email = request.form.get('email')
+        sesso = request.form.get('sesso')
+        eta = request.form.get('eta')
+        ruolo = request.form.get('ruolo')
 
-        # Verifica se lo username è già stato usato da un altro utente
-        if new_username != current_user.username and Users.query.filter_by(username=new_username).first():
-            flash('Lo username scelto è già in uso, scegline un altro', 'alert alert-warning')
-            return redirect(url_for('app.modifica_profilo'))
+        # Verifica se il campo username è stato modificato
+        if not new_username:
+            flash("Username non valido.", "alert alert-danger")
+            return redirect(url_for('modifica_profilo'))
 
         try:
-            current_user.username = new_username
-            current_user.nome = new_nome
-            current_user.cognome = new_cognome
-            current_user.sesso = new_sesso
-            current_user.eta = new_eta
+            # Trova l'utente corrente
+            user = Users.query.filter_by(username=current_user.username).first()
+            if user:
+                # Aggiorna i dettagli dell'utente
+                user.username = new_username
+                user.nome = nome
+                user.cognome = cognome
+                user.email = email
+                user.sesso = sesso
+                user.eta = eta
+                user.ruolo = ruolo
 
-            db.session.commit()
-            flash('Informazioni del profilo aggiornate con successo', 'alert alert-success')
-        except Exception as e:
+                # Salva le modifiche nel database
+                db.session.commit()
+                flash("Profilo aggiornato con successo!", "alert alert-success")
+                return redirect(url_for('profilo'))
+            else:
+                flash("Utente non trovato.", "alert alert-danger")
+                return redirect(url_for('profilo'))
+        except IntegrityError:
             db.session.rollback()
-            flash(f'Errore durante l\'aggiornamento del profilo: {str(e)}', 'alert alert-danger')
-
-        return redirect(url_for('app.modifica_profilo'))
+            flash("Errore durante l'aggiornamento del profilo.", "alert alert-danger")
 
     return render_template('modifica_profilo.html', user=current_user)
+
+
+
 
 #------------------------------ pubblicazione post -------------------------------#
 
