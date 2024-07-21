@@ -7,35 +7,34 @@
     <!-- Profilo Header -->
     <div class="profile-header d-flex align-items-center mb-4">
         <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
-             alt="Foto Profilo" class="profile-img rounded-circle" 
-             style="width: 120px; height: 120px; object-fit: cover;">
-        <div class="profile-info ml-3">
-            <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
+             alt="Foto Profilo" class="profile-img rounded-circle mx-5" 
+             style="width: 120px; height: 120px; object-fit: cover; ">
+        <div class="profile-info ml-4"> <!-- Aggiunto ml-4 per distanziare dalla foto profilo -->
             <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
             <p class="text-muted mb-2">@{{ user.username }}</p>
-            <div class="profile-stats d-flex justify-content-between mt-3">
-                <div class="text-center">
+            <div class="profile-stats d-flex justify-content-between ">
+                <div class="text-center"> <!-- Aggiunto mr-3 per distanziare -->
                     <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
                     Follower
                 </div>
-                <div class="text-center">
+                <div class="text-center mx-5"> <!-- Aggiunto mx-3 per distanziare -->
                     <span class="d-block font-weight-bold">{{ user.following_count }}</span>
                     Seguiti
                 </div>
-                <div class="text-center">
+                <div class="text-center "> <!-- Aggiunto ml-3 per distanziare -->
                     <span class="d-block font-weight-bold">{{ user.post_count }}</span>
                     Post
                 </div>
             </div>
-            <p class="bio mt-3">{{ user.biografia or "Nessuna biografia" }}</p>
+            <p class="bio mt-3">{{ user.bio or "Nessuna biografia" }}</p>
             <form method="POST" action="{{ url_for('modifica_profilo') }}">
                 <button type="submit" class="btn btn-primary">Modifica Profilo</button>
             </form>
         </div>
     </div>
-
+    <hr>
     <!-- Post Pubblicati -->
-    <h2 class="mt-4 mb-3 font-weight-bold">Post Pubblicati</h2>
+    <h3 class="mt-4 mb-3 font-weight-bold">Post Pubblicati</h3>
     <div class="row">
         {% if posts %}
             {% for post in posts %}
@@ -62,12 +61,12 @@
 
 <style>
     .container {
-        padding-top: 500px; /* Aggiungi spazio sopra il contenuto per evitare che sia coperto */
+        padding-top: 10px; /* Aggiungi spazio sopra il contenuto per evitare che sia coperto */
     }
     
     .profile-header {
         border-bottom: 1px solid #e6e6e6;
-        padding-bottom: 20px;
+        padding-bottom: 101px;
     }
 
     .profile-img {
@@ -81,6 +80,8 @@
 
     .profile-stats div {
         font-size: 0.9rem;
+        margin-right: 50px; /* Aggiunto per separare le statistiche */
+        margin-left: 100px; /* Aggiunto per separare le statistiche */
     }
 
     .bio {
@@ -112,4 +113,3 @@
         border-color: #007bb5;
     }
 </style>
-

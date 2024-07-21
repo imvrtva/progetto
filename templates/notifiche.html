@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Notifiche{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifiche</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .notification {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .notification h3 {
+            margin-top: 0;
+        }
+        .timestamp {
+            font-size: 0.9em;
+            color: #888;
+        }
+        .actions {
+            margin-top: 10px;
+        }
+        .actions button {
+            margin-right: 10px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            color: #fff;
+            background-color: #007bff;
+        }
+        .actions button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Notifiche</h1>
+
+    <div class="notification">
+        <h2>Richieste di amicizia</h2>
+        <p>Hai {{ friend_request_count }} richieste di amicizia in sospeso.</p>
+    </div>
+
+    <div class="notification">
+        <h2>Notifiche recenti</h2>
+        <ul>
+            {% for notification in all_notifications %}
+                <li>
+                    {% if notification.type == 'like' %}
+                        {{ notification.user.username }} ha messo like al tuo post:
+                        <a href="{{ url_for('post_details', post_id=notification.post.id) }}">{{ notification.post.testo }}</a>
+                    {% elif notification.type == 'comment' %}
+                        {{ notification.user.username }} ha commentato il tuo post:
+                        <a href="{{ url_for('post_details', post_id=notification.post.id) }}">{{ notification.post.testo }}</a>
+                        <br> Commento: {{ notification.comment.content }}
+                    {% endif %}
+                    <div class="timestamp">{{ notification.time_ago }}</div>
+                </li>
+            {% else %}
+                <li>Nessuna notifica</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
+{% endblock %}

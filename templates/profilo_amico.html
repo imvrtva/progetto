@@ -1,1 +1,76 @@
-ciao
+{% extends "base.html" %}
+
+{% block title %}Profilo Utente{% endblock %}
+
+{% block content %}
+<div class="container mt-6">
+    <div class="profile-header d-flex align-items-center mb-4">
+        <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
+             alt="Foto Profilo" class="profile-img rounded-circle mx-5" 
+             style="width: 120px; height: 120px; object-fit: cover;">
+        <div class="profile-info ml-4">
+            <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
+            <p class="text-muted mb-2">@{{ user.username }}</p>
+            <div class="profile-stats d-flex justify-content-between">
+                <div class="text-center">
+                    <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
+                    Follower
+                </div>
+                <div class="text-center mx-5">
+                    <span class="d-block font-weight-bold">{{ user.following_count }}</span>
+                    Seguiti
+                </div>
+                <div class="text-center">
+                    <span class="d-block font-weight-bold">{{ user.post_count }}</span>
+                    Post
+                </div>
+            </div>
+            <p class="bio mt-3">{{ user.bio or "Nessuna biografia" }}</p>
+            
+            <!-- Follow/Unfollow Button -->
+            {% if user.id_utente != current_user.id_utente %}
+                <form method="POST" action="{{ url_for('toggle_follow', user_id=user.id_utente) }}">
+                    {% if relationship is defined and relationship %}
+                        {% if relationship.stato == Stato.in_attesa.value %}
+                            <button type="submit" name="action" value="accept" class="btn btn-primary">Accetta Richiesta</button>
+                        {% elif relationship.stato == Stato.accettato.value %}
+                            <button type="submit" name="action" value="unfollow" class="btn btn-danger">Non Seguire</button>
+                        {% else %}
+                            <p>Stato sconosciuto: {{ relationship.stato }}</p>
+                        {% endif %}
+                    {% else %}
+                        <button type="submit" name="action" value="follow" class="btn btn-primary">Segui</button>
+                    {% endif %}
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    <hr>
+    <h3 class="mt-4 mb-3 font-weight-bold">Post Pubblicati</h3>
+    <div class="row">
+        {% if relationship and relationship.stato.value == Stato.accettato.value %}
+            {% if posts %}
+                {% for post in posts %}
+                    <div class="col-md-4 mb-4">
+                        <div class="card border-0 shadow-sm">
+                            {% if post.media %}
+                                <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
+                            {% endif %}
+                            <div class="card-body">
+                                <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                            </div>
+                            <div class="card-footer text-muted text-center border-0 bg-light">
+                                {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-center">Non ci sono post pubblicati.</p>
+            {% endif %}
+        {% else %}
+            <p class="text-center">Non puoi visualizzare i post di questo utente.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -3,32 +3,115 @@
 {% block title %}Homepage Utente{% endblock %}
 
 {% block content %}
-<section id="posts" class="mt-4">
-    <div class="container">
-        <h2>I tuoi feed</h2>
+<style>
+    #search {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        position: relative;
+    }
+    #posts {
+        margin-top: 0;
+        padding-top: 0;
+    }
+    .autocomplete-suggestions {
+        border: 1px solid #ddd;
+        max-height: 200px;
+        overflow-y: auto;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: #fff;
+        display: none; /* Nascondi di default */
+    }
+    .autocomplete-suggestion {
+        padding: 10px;
+        cursor: pointer;
+    }
+    .autocomplete-suggestion:hover {
+        background-color: #eee;
+    }
+</style>
 
-        {% if posts %}
-            <ul class="list-unstyled">
-                {% for post in posts %}
-                    <li class="post-item mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
-                                <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
-                                {% if post.media %}
-                                    <img src="{{ url_for('static', filename=post.media) }}" class="img-fluid" alt="Media">
-                                {% endif %}
-                            </div>
-                            <div class="card-footer text-muted">
-                                {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
-                            </div>
-                        </div>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Non ci sono post da visualizzare.</p>
-        {% endif %}
+<div class="container">
+    <h2>Ricerca Persone</h2>
+    <form id="search-form" class="mb-3" onsubmit="return false;">
+        <div class="input-group" id="search">
+            <input type="text" id="search-input" name="query" class="form-control" placeholder="Cerca persone..." aria-label="Cerca persone" autocomplete="off">
+        <div id="suggestions" class="autocomplete-suggestions"></div>
     </div>
-</section>
+    </form>
+
+    <h2>I tuoi feed</h2>
+    {% if posts %}
+        <ul class="list-unstyled">
+            {% for post in posts %}
+                <li class="post-item mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
+                            <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                            {% if post.media %}
+                                <img src="{{ url_for('static', filename=post.media) }}" class="img-fluid" alt="Media">
+                            {% endif %}
+                        </div>
+                        <div class="card-footer text-muted">
+                            {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Non ci sono post da visualizzare.</p>
+    {% endif %}
+</div>
+
+<script>
+    document.getElementById('search-input').addEventListener('input', function() {
+        const query = this.value;
+        console.log('Input changed:', query); // Debugging
+        const suggestionsBox = document.getElementById('suggestions');
+        
+        if (query.length < 2) {
+            suggestionsBox.innerHTML = '';
+            suggestionsBox.style.display = 'none';
+            return;
+        }
+        
+        fetch(`/search_suggestions?q=${encodeURIComponent(query)}`)
+            .then(response => {
+                console.log('Response received'); // Debugging
+                return response.json();
+            })
+            .then(data => {
+                console.log('Data received:', data); // Debugging
+                if (data.suggestions.length > 0) {
+                    suggestionsBox.innerHTML = data.suggestions.map(user => 
+                        `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
+                    ).join('');
+                    suggestionsBox.style.display = 'block';
+                } else {
+                    suggestionsBox.innerHTML = '<div class="autocomplete-suggestion">Nessun risultato</div>';
+                    suggestionsBox.style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error fetching suggestions:', error));
+    });
+
+    document.getElementById('suggestions').addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('autocomplete-suggestion')) {
+            const userId = e.target.getAttribute('data-id');
+            window.location.href = `/profilo_amico/${userId}`; // Supponendo che hai una route per i profili utente
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const suggestionsBox = document.getElementById('suggestions');
+        if (!document.getElementById('search').contains(e.target)) {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+</script>
 {% endblock %}

@@ -7,14 +7,16 @@ from sqlalchemy.exc import IntegrityError
 import os
 import re
 from enum import Enum
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.types import Enum as SQLAlchemyEnum
 from werkzeug.utils import secure_filename
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 
 #------------------------ accesso server -------------------------#
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
@@ -61,9 +63,10 @@ class Users(UserMixin, db.Model):
     sesso = Column(SQLAlchemyEnum(Sesso))
     eta = Column(Integer, unique=False, nullable=False)
     ruolo = Column(SQLAlchemyEnum(Ruolo))
+    bio = Column(String(250), unique=False, nullable=True)
 
 
-    def __init__(self,id_utente, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None):
+    def __init__(self,id_utente, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None, bio=None):
         self.id_utente = id_utente
         self.username = username
         self.immagine = immagine
@@ -74,6 +77,7 @@ class Users(UserMixin, db.Model):
         self.sesso = sesso
         self.eta = eta
         self.ruolo = ruolo
+        self.bio = bio
 
     # Property for password handling
     def get_id(self):
@@ -92,6 +96,30 @@ class Users(UserMixin, db.Model):
             return '/contenuti/' + self.immagine
         else:
             return None
+        
+    @property
+    def follower_count(self):
+        return Amici.query.filter_by(user_amico=self.id_utente, stato=Stato.accettato).count()
+
+    @property
+    def following_count(self):
+        return Amici.query.filter_by(io_utente=self.id_utente, stato=Stato.accettato).count()
+
+    @property
+    def post_count(self):
+        return Post.query.filter_by(utente=self.id_utente).count()
+    
+    def has_liked_post(self, post):
+        return PostLikes.query.filter(PostLikes.post_id == post.id, PostLikes.utente_id == self.id_utente).count() > 0
+
+    def url_photo(self):
+        if self.immagine:
+            return '/contenuti/' + self.immagine
+        else:
+            return '/contenuti/default_profile.png'  # Un percorso di immagine di default
+
+    def id(self):
+        return self.id_utente
 
 class Interessi(db.Model, UserMixin):
     __tablename__ = 'interessi'
@@ -118,7 +146,7 @@ class Amici(db.Model, UserMixin):
 
     io_utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     user_amico = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
-    stato = Column(SQLAlchemyEnum(Stato))
+    stato = Column(SQLAlchemyEnum(Stato), nullable=False)
 
     def __init__(self, io_utente, user_amico, stato):
         self.io_utente = io_utente
@@ -130,10 +158,12 @@ class Post(db.Model, UserMixin):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
-    media = Column(BLOB, nullable=True)
+    media = Column(String(255), nullable=True)
     tipo_post = Column(SQLAlchemyEnum('immagini', 'video', 'testo', name='tipo_post'))
     data_creazione = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
     testo = Column(Text, nullable=True)
+
+    post_likes = relationship('PostLikes', backref='post', lazy='dynamic')
 
     def __init__(self, utente, tipo_post, testo=None, media=None):
         self.utente = utente
@@ -143,33 +173,40 @@ class Post(db.Model, UserMixin):
 
     def url_photo(self):
         return '/contenuti/' + self.cover_picture
+    
+    @property
+    def likes_count(self):
+        return self.post_likes.count()
 
 class PostComments(db.Model, UserMixin):
     __tablename__ = 'post_comments'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     post_id = Column(Integer, ForeignKey('posts.id'))
-    utentec = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
+    utente_id = Column(Integer, ForeignKey('users.id_utente'))  # Aggiornato il nome della colonna
     content = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, post_id, utentec, content=None):
+    post = relationship('Post', backref='comments')
+    utente = relationship('Users', backref='comments')
+
+    def __init__(self, post_id, utente_id, content=None):
         self.post_id = post_id
-        self.utentec = utentec
+        self.utente_id = utente_id
         self.content = content
 
 class PostLikes(db.Model, UserMixin):
     __tablename__ = 'post_likes'
 
     post_id = Column(Integer, ForeignKey('posts.id'), primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Modificato in user_id
-    content = Column(Text, nullable=True)
-    clicked_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+    utente_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Aggiornato il nome della colonna
+    clicked_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, post_id, user_id, content=None):
+
+    def __init__(self, post_id, utente_id):
         self.post_id = post_id
-        self.user_id = user_id
-        self.content = content
+        self.utente_id = utente_id
+    
 
 class Annunci(db.Model, UserMixin):
     __tablename__ = 'annunci'
@@ -180,7 +217,7 @@ class Annunci(db.Model, UserMixin):
     sesso_target = Column(SQLAlchemyEnum(Sesso))
     eta_target = Column(Integer, unique=False, nullable=False)
     interesse_target = Column(Integer, ForeignKey('interessi.id_interessi'), nullable=False)
-    inizio = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+    inizio = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
     fine = Column(Date, default=func.current_timestamp())
 
     def __init__(self, advertiser, tipo_post, sesso_target, eta_target, interesse_target, fine):
@@ -196,7 +233,7 @@ class AnnunciLikes(db.Model, UserMixin):
 
     annuncio_id = Column(Integer, ForeignKey('annunci.id'), primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Modificato in user_id
-    clicked_at = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
+    clicked_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
 
     def __init__(self, annuncio_id, user_id):
         self.annuncio_id = annuncio_id
@@ -211,17 +248,6 @@ with app.app_context():
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@property
-def follower_count(self):
-    return Amici.query.filter_by(user_amico=self.id_utente, stato=Stato.accettato).count()
-
-@property
-def following_count(self):
-    return Amici.query.filter_by(io_utente=self.id_utente, sstato=Stato.accettato).count()
-
-@property
-def post_count(self):
-    return Post.query.filter_by(user_id=self.id_utente).count()
 
 ##controllo password
 def check_password(password):
@@ -387,19 +413,9 @@ def interessi():
 def profilo():
     # Recupera l'utente corrente
     user = current_user
-    
     posts = Post.query.filter_by(utente=user.id_utente).all()
-    follower_count = Amici.query.filter_by(user_amico=user.id_utente, stato=Stato.accettato).count()
     
-    # Calcola il numero di seguiti
-    following_count = Amici.query.filter_by(io_utente=user.id_utente, stato=Stato.accettato).count()
-    
-    # Calcola il numero di post
-    post_count = len(posts)
-    # Rende il template profilo_io.html con i dati dell'utente
-    return render_template('profilo_io.html', user=user, posts=posts, follower_count=follower_count,
-                           following_count=following_count,
-                           post_count=post_count)
+    return render_template('profilo_io.html', user=user, posts=posts)
 
 from sqlalchemy.exc import IntegrityError
 
@@ -417,6 +433,7 @@ def modifica_profilo():
         sesso = request.form.get('sesso')
         eta = request.form.get('eta')
         ruolo = request.form.get('ruolo')
+        bio = request.form.get('bio')
         immagine = request.files.get('immagine')
 
         if not all([username, nome, cognome, email, sesso, eta, ruolo]):
@@ -431,6 +448,7 @@ def modifica_profilo():
             user.sesso = sesso
             user.eta = eta
             user.ruolo = ruolo
+            user.bio = bio
 
             if immagine and allowed_file(immagine.filename):
                 filename = secure_filename(immagine.filename)
@@ -446,6 +464,7 @@ def modifica_profilo():
         return redirect(url_for('profilo'))
 
     return render_template('modifica_profilo.html', user=user)
+
 
 @app.route('/contenuti/<filename>')
 def serve_file(filename):
@@ -595,67 +614,57 @@ def elimina_post(id):
 
 #------------------------------ inserimento commenti -------------------------------#
 
-@app.route('/commenti/<string:utente>', methods=['POST'])
-@login_required
-def commenta_post(post_id):
-    details = request.form
-    contenuto = details.get('contenuto')
+@app.route('/post/<int:post_id>/comment', methods=['POST'])
+def add_comment(post_id):
+    post = Post.query.get_or_404(post_id)
+    content = request.form['content']
+    user_id = 1  # Get the currently logged-in user ID
+    new_comment = PostComments(post_id=post_id, utente_id=user_id, content=content)
+    db.session.add(new_comment)
+    db.session.commit()
+    return redirect(url_for('post_details', post_id=post_id))
 
-    if not contenuto:
-        flash('Il commento non può essere vuoto', 'alert alert-warning')
-            
-    if current_user.is_inserzionista:
-        return render_template('inserzionista_home')
-    else:
-        return render_template('utente_home')
-        return redirect(url_for('utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
-
-    nuovo_commento = Comment(contenuto=contenuto, autore=current_user.username, post_id=post_id, data_commento=datetime.now())
-
-    try:
-        db.session.add(nuovo_commento)
-        db.session.commit()
-        flash('Commento aggiunto con successo', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Errore durante l\'aggiunta del commento: {str(e)}', 'alert alert-danger')
-        
-    if current_user.is_inserzionista:
-        return render_template('inserzionista_home')
-    else:
-        return render_template('utente_home')
     
 
-@app.route('/elimina_commento/<int:comment_id>', methods=['DELETE'])
+@app.route('/delete_comment/<int:comment_id>', methods=['POST'])
 @login_required
-def elimina_commento(id):
-    current_user = request.json['current_user']
+def delete_comment(comment_id):
+    comment = PostComments.query.get(comment_id)
+    if comment is None:
+        flash('Commento non trovato.', 'danger')
+        return redirect(url_for('post_details', post_id=comment.post_id))
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
+    if comment.utente_id != current_user.id_utente and comment.post.utente != current_user.id_utente:
+        flash('Non hai il permesso per eliminare questo commento.', 'danger')
+        return redirect(url_for('post_details', post_id=comment.post_id))
 
-        # Verifica se il commento esiste e appartiene all'utente corrente
-        cursor.execute("SELECT * FROM post_comments WHERE id = ? AND utentec = ?", (id, current_user))
-        commento = cursor.fetchone()
-        
-        if commento is None:
-            return jsonify({"message": "Commento non trovato o non autorizzato"}), 404
-        
-        # Elimina il commento
-        cursor.execute("DELETE FROM post_comments WHERE id = ?", (id))
-        
-        conn.commit()
-        return jsonify({"message": "Commento eliminato con successo"}), 200
+    db.session.delete(comment)
+    db.session.commit()
+    flash('Commento eliminato con successo.', 'success')
+    return redirect(url_for('post_details', post_id=comment.post_id))
 
-    except sqlite3.Error as e:
-        return jsonify({"message": f"Errore nel database: {e}"}), 500
 
-    finally:
-        conn.close()
-        return render_template('commenti.html', user=utente)
 
 #------------------------------ inserimento mi piace -------------------------------#
+
+@app.route('/toggle_like/<int:post_id>', methods=['POST'])
+@login_required
+def toggle_like(post_id):
+    post = Post.query.get_or_404(post_id)
+    like = PostLikes.query.filter_by(post_id=post.id, utente_id=current_user.id_utente).first()
+    
+    if like:
+        # Se esiste un like, rimuovilo (dislike)
+        db.session.delete(like)
+        db.session.commit()
+    else:
+        # Altrimenti, aggiungi un nuovo like
+        new_like = PostLikes(post_id=post.id, utente_id=current_user.id_utente)
+        db.session.add(new_like)
+        db.session.commit()
+
+    return redirect(url_for('post_details', post_id=post.id))
+
 
 @app.route('/mi_piace/<int:post_id>', methods=['POST'])
 @login_required
@@ -711,65 +720,171 @@ def elimina_mi_piace(post_id):
         conn.close()
         return render_template('home_utente.html', user=current_user)
 
+#------------------------------ Notifiche -------------------------------#
+
+@app.route('/notifiche', methods=['GET'])
+@login_required
+def notifiche():
+    user_id = current_user.id_utente
+
+    # Recuperare i like ricevuti
+    like_notifiche = db.session.query(PostLikes, Post, Users)\
+        .join(Post, PostLikes.post_id == Post.id)\
+        .join(Users, PostLikes.utente_id == Users.id_utente)\
+        .filter(Post.utente == user_id)\
+        .filter(PostLikes.utente_id != user_id)\
+        .all()
+
+    # Recuperare i commenti ricevuti
+    comment_notifiche = db.session.query(PostComments, Post, Users)\
+        .join(Post, PostComments.post_id == Post.id)\
+        .join(Users, PostComments.utente_id == Users.id_utente)\
+        .filter(Post.utente == user_id)\
+        .filter(PostComments.utente_id != user_id)\
+        .all()
+
+    stato = 'in attesa'
+    # Recuperare le richieste di amicizia
+    friend_requests = db.session.query(Amici, Users)\
+        .join(Users, Amici.io_utente == Users.id_utente)\
+        .filter(Amici.user_amico == user_id, Amici.stato == stato)\
+        .all()
+
+    # Creare una lista di notifiche combinata
+    all_notifications = []
+
+    # Aggiungere le notifiche di like
+    for post_like, post, user in like_notifiche:
+        all_notifications.append({
+            'type': 'like',
+            'user': user,
+            'post': post,
+            'time_ago': time_since(post_like.clicked_at)
+        })
+
+    # Aggiungere le notifiche di commento
+    for comment, post, user in comment_notifiche:
+        all_notifications.append({
+            'type': 'comment',
+            'user': user,
+            'post': post,
+            'comment': comment,
+            'time_ago': time_since(comment.created_at)
+        })
+
+    # Ordinare le notifiche per data
+    all_notifications.sort(key=lambda x: x['time_ago'], reverse=True)
+
+    # Contare le richieste di amicizia in sospeso
+    friend_request_count = len(friend_requests)
+
+    return render_template('notifiche.html', 
+                           all_notifications=all_notifications, 
+                           friend_request_count=friend_request_count)
+
+def time_since(post_time):
+    # Definire il fuso orario italiano
+    italian_tz = pytz.timezone('Europe/Rome')
+
+    # Assicurarsi che 'post_time' sia timezone-aware e sia nel fuso orario italiano
+    if post_time.tzinfo is None:
+        post_time = italian_tz.localize(post_time)  # Localizza il tempo a Italia
+
+    now = datetime.now(italian_tz)  # Ottieni l'orario corrente in Italia
+    diff = now - post_time
+
+    if diff.days > 0:
+        return f"{diff.days} giorni fa"
+    elif diff.seconds // 3600 > 0:
+        return f"{diff.seconds // 3600} ore fa"
+    elif diff.seconds // 60 > 0:
+        return f"{diff.seconds // 60} minuti fa"
+    else:
+        return "ora"
+
+
+@app.route('/richieste', methods=['GET'])
+@login_required
+def richieste():
+    user_id = current_user.id_utente
+
+    # Recuperare le richieste di amicizia
+    friend_requests = db.session.query(Amici, Users).join(Users, Amici.io_utente == Users.id_utente).filter(Amici.user_amico == user_id, Amici.stato == Stato.in_attesa).all()
+
+    return render_template('richieste.html', friend_requests=friend_requests)
+
+#------------------------------ vedere i post -------------------------------#
+
+@app.route('/post/<int:post_id>', methods=['GET', 'POST'])
+@login_required
+def post_details(post_id):
+    post = Post.query.get_or_404(post_id)
+    post_user = Users.query.get_or_404(post.utente)
+    comments = PostComments.query.filter_by(post_id=post_id).all()
+    
+    comment_users = {}
+    for comment in comments:
+        comment_user = Users.query.get(comment.utente_id)
+        if comment_user:
+            comment_users[comment.id] = comment_user
+
+    # Verifica se l'utente ha messo mi piace al post
+    liked = PostLikes.query.filter_by(post_id=post_id, utente_id=current_user.id_utente).first() is not None
+
+    if request.method == 'POST':
+        # Aggiungi un nuovo commento
+        if 'content' in request.form:
+            content = request.form['content']
+            new_comment = PostComments(post_id=post_id, utente_id=current_user.id_utente, content=content)
+            db.session.add(new_comment)
+            db.session.commit()
+            return redirect(url_for('post_details', post_id=post_id))
+
+    return render_template('post.html', post=post, post_user=post_user, comments=comments, comment_users=comment_users, liked=liked)
+
+
 #------------------------------ seguire e accettare -------------------------------#
 
     # inviare una richiesta ad una persona
 
-@app.route('/richieste/<string:utente>', methods=['POST'])
+@app.route('/toggle_follow/<int:user_id>', methods=['POST'])
 @login_required
-def invia_richiesta(utente):
-    current_user = request.json['current_user']
+def toggle_follow(user_id):
+    user_to_follow = Users.query.get_or_404(user_id)
+    existing_relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        
-        # Inserisci una nuova richiesta di amicizia
-        cursor.execute("""
-            INSERT INTO amici (io_utente, user_amico, stato_richiesta)
-            VALUES (?, ?, ?)
-        """, (current_user, utente, 'in_attesa'))
-        
-        conn.commit()
-        return jsonify({"message": "Richiesta di amicizia inviata con successo"}), 201
+    # Get the action from the form
+    action = request.form.get('action')
 
-    except sqlite3.IntegrityError:
-        return jsonify({"message": "Errore: richiesta di amicizia già inviata o utente non esistente"}), 400
+    if existing_relationship:
+        if action == 'accept':
+            # Accetta la richiesta
+            existing_relationship.stato = Stato.accettato
+        elif action == 'unfollow':
+            # Non seguire più
+            db.session.delete(existing_relationship)
+    else:
+        if action == 'follow':
+            # Crea una nuova richiesta di amicizia o segui l'utente
+            new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.in_attesa)
+            db.session.add(new_relationship)
 
-    finally:
-        conn.close()
-        return render_template('profilo_amico.html', user=utente)
+    db.session.commit()
+    return redirect(request.referrer)
 
-    # accettare una richiesta
 
-@app.route('/richieste/<string:utente>', methods=['POST'])
+
+
+
+@app.route('/accept_request/<int:user_id>', methods=['POST'])
 @login_required
-def accetta_richiesta(utente):
-    current_user = request.json['current_user']
+def accept_request(user_id):
+    relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
+    if relationship and relationship.stato.value == 'in_attesa':
+        relationship.stato.value = 'accettato'
+        db.session.commit()
+    return redirect(request.referrer)
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        
-        # Aggiorna lo stato della richiesta di amicizia
-        cursor.execute("""
-            UPDATE amici
-            SET stato_richiesta = ?
-            WHERE io_utente = ? AND user_amico = ? AND stato_richiesta = ?
-        """, ('accettata', utente, current_user, 'in_attesa'))
-        
-        if cursor.rowcount == 0:
-            return jsonify({"message": "Errore: richiesta di amicizia non trovata o già accettata"}), 400
-        
-        conn.commit()
-        return jsonify({"message": "Richiesta di amicizia accettata con successo"}), 200
-
-    except sqlite3.Error as e:
-        return jsonify({"message": f"Errore nel database: {e}"}), 500
-
-    finally:
-        conn.close()
-        return render_template('profilo_amico.html', user=utente)
 
     #rifiuta richiesta
 
@@ -804,15 +919,28 @@ def rifiuta_richiesta(utente):
 
 #------------------------------ ricerca utente -------------------------------#
 
-@app.route('/cerca_utente', methods=['GET', 'POST'])
+@app.route('/search_suggestions')
 @login_required
-def cerca_utente():
-    if request.method == 'POST':
-        search_term = request.form.get('search_term', '')
-        risultati_ricerca = Users.query.filter(Users.username.ilike(f'%{search_term}%')).all()
-        return render_template('risultati_ricerca.html', risultati=risultati_ricerca, search_term=search_term)
+def search_suggestions():
+    query = request.args.get('q')
+    if not query:
+        return jsonify({'suggestions': []})
+
+    suggestions = db.session.query(Users).filter(Users.username.ilike(f'%{query}%')).limit(10).all()
     
-    return render_template('cerca_utente.html')
+    return jsonify({
+        'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
+    })
+
+@app.route('/profilo_amico/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def profilo_amico(user_id):
+    # Recupera l'utente da visualizzare
+    user = Users.query.get_or_404(user_id)
+    
+   
+    # Rendi la pagina del profilo
+    return render_template('profilo_amico.html', user=user)
 
 #------------------------------- rimuovere amici ---------------------------------#
 

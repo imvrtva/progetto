@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Dettagli del Post{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head class="spazio">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <p> </p>
+    <h3>Dettagli del Post</h3>
+    <!-- Include Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .post-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post-header img {
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+        }
+        .post-content {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .post-footer {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .like-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+        }
+        .fa-heart, .fa-heart-o {
+            font-size: 24px;
+        }
+        .liked {
+            color: red;
+        }
+        .like-count {
+            margin-left: 8px;
+            font-size: 18px;
+        }
+        .comments-section {
+            margin-top: 20px;
+        }
+        .comment {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .comment img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .comment-form textarea {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .comment-form button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .comment-form button:hover {
+            background-color: #0056b3;
+        }
+        .delete-button {
+            background: none;
+            border: none;
+            color: red;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="post-container">
+        <div class="post-header">
+            <img src="{{ post_user.url_photo() }}" alt="Foto profilo di {{ post_user.username }}">
+            <p>@{{ post_user.username }}</p>
+        </div>        
+        <div class="post-content">
+            {% if post.tipo_post == 'immagini' %}
+                <img src="{{ url_for('static', filename=post.media) }}" alt="Post Image" style="width: 100%; border-radius: 8px;">
+            {% elif post.tipo_post == 'video' %}
+                <video controls style="width: 100%; border-radius: 8px;">
+                    <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            {% elif post.tipo_post == 'testo' %}
+                <p>{{ post.testo }}</p>
+            {% endif %}
+        </div>
+        <div class="post-footer">
+            <form method="post" action="{{ url_for('toggle_like', post_id=post.id) }}">
+                <button type="submit" class="like-button">
+                    <i class="fa {% if liked %}fa-heart liked{% else %}fa-heart-o{% endif %}"></i>
+                    <span class="like-count">{{ post.likes_count }}</span>
+                </button>
+            </form>
+        </div>
+    </div>
+    <hr>
+    <div class="comments-section">
+        <h3>Commenti</h3>
+        {% for comment in comments %}
+            <div class="comment">
+                {% if comment.id in comment_users %}
+                    <img src="{{ comment_users[comment.id].url_photo() }}" alt="{{ comment_users[comment.id].username }}">
+                    <strong>@{{ comment_users[comment.id].username }}:</strong> {{ comment.content }}
+                    {% if comment.utente_id == current_user.id_utente or post.utente == current_user.id_utente %}
+
+                        <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" style="display: inline;">
+                            <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <p>Commento di utente non trovato.</p>
+                {% endif %}
+            </div>
+        {% else %}
+            <p>Nessun commento ancora.</p>
+        {% endfor %}
+    </div>
+    <div class="comment-form">
+        <form action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
+            <textarea name="content" rows="3" placeholder="Aggiungi un commento..." required></textarea>
+            <br>
+            <button type="submit">Commenta</button>
+        </form>
+    </div>
+</body>
+</html>
+{% endblock %}

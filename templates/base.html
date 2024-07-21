@@ -11,8 +11,9 @@
             font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            position: relative; /* Ensure the body takes the full height */
-            min-height: 100vh; /* Ensure the body takes the full height */
+            min-height: 50vh; /* Ensure the body takes the full height */
+            display: flex;
+            flex-direction: column;
         }
         .top-bar {
             background-color: #405D72;
@@ -22,7 +23,7 @@
             position: fixed;
             width: 100%;
             top: 0;
-            z-index: 1000; /* Ensure it's on top of the content */
+            z-index: 100; /* Ensure it's on top of the content */
         }
         .logout-btn {
             color: white;
@@ -30,9 +31,9 @@
             margin-left: 20px;
         }
         .container {
-            margin-top: 70px; /* Adjust according to the height of the top bar */
+            flex: 1; /* Allow the container to grow and take available space */
+            margin-top: 30px; /* Adjust according to the height of the top bar */
             padding-bottom: 70px; /* Adjust according to the height of the down bar */
-            min-height: calc(100vh - 140px); /* Ensure content takes up full height minus bars */
         }
         .down-bar {
             background-color: #fff;
@@ -69,8 +70,8 @@
             margin-top: 1rem;
         }
         main {
-            padding-bottom: 60px; /* Adjust according to the height of the down bar */
-            position: relative; /* Ensure the main takes the full height */
+            padding-top: 70px; /* Adjust according to the height of the top bar */
+            padding-bottom: 70px; /* Adjust according to the height of the down bar */
         }
     </style>
 </head>
@@ -99,7 +100,7 @@
                 <a class="nav-link" href="{{ url_for('post_testo', username=current_user.username) }}">Pubblica</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link">Notifiche</a>
+                <a class="nav-link" href="{{ url_for('notifiche') }}">Notifiche</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('profilo') }}">Profilo</a>
