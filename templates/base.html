@@ -97,7 +97,7 @@
                 <a class="nav-link" href="{{ url_for('utente', id_utente=current_user.id_utente) }}">Home</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{{ url_for('post_testo', username=current_user.username) }}">Pubblica</a>
+                <a class="nav-link" href="{{ url_for('scegli_post', username=current_user.username) }}">Pubblica</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('notifiche') }}">Notifiche</a>

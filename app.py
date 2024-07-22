@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -477,160 +477,71 @@ def serve_file(filename):
 
 
 #------------------------------ pubblicazione post -------------------------------#
-@app.route('/homepage/pubblica/<int:id_utente>', methods=['POST'])
-@login_required
-def pubblica_post(tipo, id_utente):
-    tipo_post = request.form.get('tipo_post', '').lower()
-    if tipo_post == 'immagine':
-        return post_immagine()
-    elif tipo_post == 'video':
-        return post_video()
-    elif tipo_post == 'testo':
-        return post_testo()
-    else:
-        return jsonify({"message": "Tipo di post non riconosciuto. Scegli tra 'immagine', 'video' o 'foto'."})
+@app.route('/scegli_post', methods=['GET', 'POST'])
+def scegli_post():
+    return render_template('scelta_post.html')
 
 
 
 ## pubblicazione testo
  
-@app.route('/pubblica/testo/<username>', methods=['POST'])
+@app.route('/pubblica_testo', methods=['GET', 'POST'])
 @login_required
-def post_testo(username):
-    contenuto = request.form.get('contenuto')
-    tipo_post = request.form.get('tipo_post','testo')  # Assume che ci sia un campo 'tipo_post' nel form
-
-    if not contenuto:
-        flash('Il post non può essere vuoto', 'alert alert-warning')
-        return render_template('pubblicazione_testo.html') # rimane nella stessa pagina html
-
-    nuovo_post = Post(
-        utente=current_user.username,
-        tipo_post=tipo_post,
-        data_creazione=datetime.now(),
-        testo=contenuto
-    )
-
-    try:
+def pubblica_testo():
+    if request.method == 'POST':
+        testo = request.form['testo']
+        nuovo_post = Post(utente=current_user.id_utente, tipo_post='testo', testo=testo)
         db.session.add(nuovo_post)
         db.session.commit()
-        flash('Post pubblicato con successo', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash('Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
-
-    if current_user.is_inserzionista:
-        return render_template('home_inserzionista.html')
-    else:
-        return render_template('home_utente.html')
-
+        return redirect(url_for('utente', id_utente=current_user.id_utente))
+    return render_template('pubblicazione_testo.html')
 ## pubblicazione video
 
-@app.route('/pubblica/video/<username>', methods=['POST'])
+@app.route('/pubblica_video', methods=['GET', 'POST'])
 @login_required
-def post_video(username):
-    file = request.files.get('video')
-    contenuto = request.form.get('contenuto')
-
-    if not file or file.filename == '':
-        flash('Nessun file selezionato', 'alert alert-warning')
-        return render_template('pubblicazione_video.html')
-
-    filename = secure_filename(file.filename)
-    file.save(os.path.join('contenuti', filename))  # Specifica il percorso dove salvare il file
-
-    nuovo_post = Post(
-        utente=current_user.username,
-        media=filename,
-        tipo_post='video',
-        data_creazione=datetime.now(),
-        testo=contenuto
-    )
-
-    try:
+def pubblica_video():
+    if request.method == 'POST':
+        video = request.files['video']
+        testo = request.form['testo']
+        nome_file = 'contenuti' + video.filename  # Modificare il percorso per salvare il video
+        video.save(nome_file)
+        nuovo_post = Post(utente=current_user.id_utente, tipo_post='video', testo=testo, media=nome_file)
         db.session.add(nuovo_post)
         db.session.commit()
-        flash('Post di video pubblicato con successo', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
-    
-    if current_user.is_inserzionista:
-        return render_template('home_inserzionista.html')
-    else:
-        return render_template('home_utente.html')
-
+        return redirect(url_for('utente', id_utente=current_user.id_utente))
+    return render_template('pubblicazione_video.html')
 ## pubblicazione immagine
 
-@app.route('/pubblica/immagine/<username>', methods=['POST'])
+@app.route('/pubblica_immagini', methods=['GET', 'POST'])
 @login_required
-def post_immagine(username):
-    file = request.files.get('photo')
-    contenuto = request.form.get('contenuto')
-
-    if not file or file.filename == '':
-        flash('Nessun file selezionato', 'alert alert-warning')
-        return render_template('pubblicazione_immagine.html')
-
-    filename = secure_filename(file.filename)
-    file.save(os.path.join('contenuti', filename))  # Specifica il percorso dove salvare il file
-
-    nuovo_post = Post(
-        utente=current_user.username,
-        tipo_post='immagine',
-        data_creazione=datetime.now(),
-        testo=contenuto,
-        media=filename
-    )
-
-    try:
+def pubblica_immagini():
+    if request.method == 'POST':
+        immagine = request.files['immagine']
+        testo = request.form['testo']
+        nome_file = 'contenuti' + immagine.filename  # Modificare il percorso per salvare l'immagine
+        immagine.save(nome_file)
+        nuovo_post = Post(utente=current_user.id_utente, tipo_post='immagini', testo=testo, media=nome_file)
         db.session.add(nuovo_post)
         db.session.commit()
-        flash('Post di immagine pubblicato con successo', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Errore durante la pubblicazione del post: {str(e)}', 'alert alert-danger')
+        return redirect(url_for('utente', id_utente=current_user.id_utente))
+    return render_template('pubblicazione_immagine.html')
 
-    if current_user.is_inserzionista:
-        return render_template('home_inserzionista.html')
-    else:
-        return render_template('home_utente.html')
-
-@app.route('/elimina_post/<int:post_id>', methods=['DELETE'])
+@app.route('/elimina_post/<int:post_id>', methods=['POST'])
 @login_required
-def elimina_post(id):
-    current_user = request.json['current_user']
-
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-
-        # Verifica se il post esiste e appartiene all'utente corrente
-        cursor.execute("SELECT * FROM posts WHERE id = ? AND utente = ?", (id, current_user))
-        post = cursor.fetchone()
-        
-        if post is None:
-            return jsonify({"message": "Post non trovato o non autorizzato"}), 404
-
-        # Elimina i commenti associati al post
-        cursor.execute("DELETE FROM post_comments WHERE id = ?", (id,))
-
-        # Elimina i like associati al post
-        cursor.execute("DELETE FROM post_likes WHERE id = ?", (id,))
-        
-        # Elimina il post
-        cursor.execute("DELETE FROM posts WHERE id = ?", (id,))
-        
-        conn.commit()
-        return jsonify({"message": "Post eliminato con successo"}), 200
-
-    except sqlite3.Error as e:
-        return jsonify({"message": f"Errore nel database: {e}"}), 500
-
-    finally:
-        conn.close()
-        return render_template('profilo_io.html')
-
+def elimina_post(post_id):
+    # Recupera il post con l'ID specificato
+    post = Post.query.get_or_404(post_id)
+    # Verifica se l'utente corrente è l'autore del post
+    if post.utente != current_user.id_utente:
+        flash("Non sei autorizzato a eliminare questo post.", category="alert alert-danger")
+        return redirect(url_for('utente', id_utente=current_user.id_utente))
+    # Elimina i like associati al post
+    PostLikes.query.filter_by(post_id=post_id).delete()
+    # Elimina il post
+    db.session.delete(post)
+    db.session.commit()
+    flash("Post eliminato con successo.", category="alert alert-success")
+    return redirect(url_for('utente', id_utente=current_user.id_utente))
 #------------------------------ inserimento commenti -------------------------------#
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])

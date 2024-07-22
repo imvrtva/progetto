@@ -97,25 +97,58 @@
             font-size: 14px;
             margin-left: 10px;
         }
+
+        .delete:hover {
+            background-color: #0036cc; /* Darker color on hover */
+            transform: scale(1.05); /* Slight zoom effect */
+        }
+
+        .delete:focus {
+            outline: none; /* Remove default focus outline */
+        }
+
+        .delete {
+            position: absolute; /* Position the button absolutely within the comment container */
+            top: 170px; /* Adjust according to your layout */
+            right: 125px; /* Adjust according to your layout */
+            background-color: #4da0ff; /* Button background color */
+            color: white;
+            border: none;
+            border-radius: 4px; /* Rounded corners */
+            font-size: 14px; /* Font size */
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s; /* Smooth transitions */
+            z-index: 10; /* Ensure it's on top of other content */
+        }
     </style>
 </head>
 <body>
+    <!-- Pulsante di Eliminazione -->
+    {% if post.utente == current_user.id_utente %}
+        <form method="POST" action="{{ url_for('elimina_post', post_id=post.id) }}" style="display:inline;" class="delete">
+            <button type="submit" class="btn btn-danger btn-sm">Elimina</button>
+        </form>
+    {% endif %}
     <div class="post-container">
+        <!-- Data di Creazione -->
+        <div class="card-footer text-muted text-center border-0 bg-white">
+            pubblicato il: {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
+        </div>
         <div class="post-header">
             <img src="{{ post_user.url_photo() }}" alt="Foto profilo di {{ post_user.username }}">
             <p>@{{ post_user.username }}</p>
         </div>        
         <div class="post-content">
             {% if post.tipo_post == 'immagini' %}
-                <img src="{{ url_for('static', filename=post.media) }}" alt="Post Image" style="width: 100%; border-radius: 8px;">
+                <img src="{{ url_for('static', filename='contenuti/' ~ post.media) }}" alt="Post Image" style="width: 100%; border-radius: 8px;">
             {% elif post.tipo_post == 'video' %}
                 <video controls style="width: 100%; border-radius: 8px;">
-                    <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                    <source src="{{ url_for('static', filename='contenuti/' ~ post.media) }}" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             {% elif post.tipo_post == 'testo' %}
                 <p>{{ post.testo }}</p>
-            {% endif %}
+            {% endif %} 
         </div>
         <div class="post-footer">
             <form method="post" action="{{ url_for('toggle_like', post_id=post.id) }}">

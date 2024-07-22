@@ -8,7 +8,7 @@
     <div class="profile-header d-flex align-items-center mb-4">
         <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
              alt="Foto Profilo" class="profile-img rounded-circle mx-5" 
-             style="width: 120px; height: 120px; object-fit: cover; ">
+             style="width: 120px; height: 120px; object-fit: cover;">
         <div class="profile-info ml-4"> <!-- Aggiunto ml-4 per distanziare dalla foto profilo -->
             <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
             <p class="text-muted mb-2">@{{ user.username }}</p>
@@ -38,8 +38,9 @@
     <div class="row">
         {% if posts %}
             {% for post in posts %}
-                <div class="col-md-4 mb-4">
-                    <div class="card border-0 shadow-sm">
+            <div class="col-md-4 mb-4">
+                <a href="{{ url_for('post_details', post_id=post.id) }}" class="text-decoration-none">
+                    <div class="card border-0 shadow-sm h-100">
                         {% if post.media %}
                             <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
                         {% endif %}
@@ -50,7 +51,8 @@
                             {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
                         </div>
                     </div>
-                </div>
+                </a>
+            </div>
             {% endfor %}
         {% else %}
             <p class="text-center">Non ci sono post pubblicati.</p>
@@ -58,7 +60,6 @@
     </div>
 </div>
 {% endblock %}
-
 <style>
     .container {
         padding-top: 10px; /* Aggiungi spazio sopra il contenuto per evitare che sia coperto */
