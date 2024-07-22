@@ -440,6 +440,11 @@ def modifica_profilo():
             flash('Tutti i campi sono obbligatori.', 'alert alert-danger')
             return redirect(url_for('modifica_profilo'))
 
+        existing_user = Users.query.filter_by(username=username).first()
+        if existing_user and existing_user.id_utente != current_user.id_utente:
+            flash('Username già in uso.', 'alert alert-danger')
+            return redirect(url_for('modifica_profilo'))
+
         if user:
             user.username = username
             user.nome = nome
@@ -857,16 +862,11 @@ def toggle_follow(user_id):
     action = request.form.get('action')
 
     if existing_relationship:
-        if action == 'accept':
-            # Accetta la richiesta
-            existing_relationship.stato = Stato.accettato
-        elif action == 'unfollow':
-            # Non seguire più
+        if action == 'unfollow':
             db.session.delete(existing_relationship)
     else:
         if action == 'follow':
-            # Crea una nuova richiesta di amicizia o segui l'utente
-            new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.in_attesa)
+            new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.accettato.value)
             db.session.add(new_relationship)
 
     db.session.commit()
@@ -876,14 +876,19 @@ def toggle_follow(user_id):
 
 
 
+
+
+
 @app.route('/accept_request/<int:user_id>', methods=['POST'])
 @login_required
 def accept_request(user_id):
-    relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
-    if relationship and relationship.stato.value == 'in_attesa':
-        relationship.stato.value = 'accettato'
+    relationship = Amici.query.filter_by(io_utente=user_id, user_amico=current_user.id_utente).first()
+    if relationship and relationship.stato.value == Stato.in_attesa.value:
+        relationship.stato.value = Stato.accettato.value
         db.session.commit()
     return redirect(request.referrer)
+
+
 
 
     #rifiuta richiesta
@@ -935,12 +940,10 @@ def search_suggestions():
 @app.route('/profilo_amico/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def profilo_amico(user_id):
-    # Recupera l'utente da visualizzare
     user = Users.query.get_or_404(user_id)
-    
-   
-    # Rendi la pagina del profilo
-    return render_template('profilo_amico.html', user=user)
+    relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
+    posts = Post.query.filter_by(utente=user_id).all()
+    return render_template('profile.html', user=user, relationship=relationship, posts=posts, Stato=Stato)
 
 #------------------------------- rimuovere amici ---------------------------------#
 
