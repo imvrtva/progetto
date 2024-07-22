@@ -762,7 +762,7 @@ def notifiche():
         .filter(PostComments.utente_id != user_id)\
         .all()
 
-    stato = 'in attesa'
+    stato = 'in_attesa'
     # Recuperare le richieste di amicizia
     friend_requests = db.session.query(Amici, Users)\
         .join(Users, Amici.io_utente == Users.id_utente)\
@@ -880,7 +880,7 @@ def toggle_follow(user_id):
             db.session.delete(existing_relationship)
     else:
         if action == 'follow':
-            new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.accettato.value)
+            new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.in_attesa.value)
             db.session.add(new_relationship)
 
     db.session.commit()
@@ -957,7 +957,7 @@ def profilo_amico(user_id):
     user = Users.query.get_or_404(user_id)
     relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
     posts = Post.query.filter_by(utente=user_id).all()
-    return render_template('profile.html', user=user, relationship=relationship, posts=posts, Stato=Stato)
+    return render_template('profilo_amico.html', user=user, relationship=relationship, posts=posts, Stato=Stato)
 
 #------------------------------- rimuovere amici ---------------------------------#
 
