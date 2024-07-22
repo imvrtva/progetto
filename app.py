@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -477,6 +477,20 @@ def serve_file(filename):
 
 
 #------------------------------ pubblicazione post -------------------------------#
+@app.route('/homepage/pubblica/<int:id_utente>', methods=['POST'])
+@login_required
+def pubblica_post(tipo, id_utente):
+    tipo_post = request.form.get('tipo_post', '').lower()
+    if tipo_post == 'immagine':
+        return post_immagine()
+    elif tipo_post == 'video':
+        return post_video()
+    elif tipo_post == 'testo':
+        return post_testo()
+    else:
+        return jsonify({"message": "Tipo di post non riconosciuto. Scegli tra 'immagine', 'video' o 'foto'."})
+
+
 
 ## pubblicazione testo
  
