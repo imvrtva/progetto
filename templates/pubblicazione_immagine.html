@@ -1,1 +1,20 @@
-ciao
+ciao/pubblicazione immagine
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pubblica Immagini</title>
+</head>
+<body>
+    <h1>Pubblica un'Immagine</h1>
+    <form action="/pubblica_immagini" method="post" enctype="multipart/form-data">
+        <input type="file" name="immagine">
+        <br>
+        <textarea name="testo" rows="10" cols="30" placeholder="Scrivi una descrizione..."></textarea>
+        <br>
+        <button type="submit">Pubblica</button>
+    </form>
+</body>
+</html>
