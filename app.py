@@ -58,7 +58,7 @@ class Users(UserMixin, db.Model):
     immagine = Column(String(100), nullable=True)
     nome = Column(String(50), unique=False, nullable=False)
     cognome = Column(String(50), unique=False, nullable=False)
-    password_hash = Column(String(150), nullable=False)  # Changed to password_hash
+    password = Column(String(150), nullable=False)  # Changed to password_hash
     email = Column(String(150), unique=True, nullable=False)
     sesso = Column(SQLAlchemyEnum(Sesso))
     eta = Column(Integer, unique=False, nullable=False)
@@ -66,13 +66,13 @@ class Users(UserMixin, db.Model):
     bio = Column(String(250), unique=False, nullable=True)
 
 
-    def __init__(self,id_utente, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None, bio=None):
-        self.id_utente = id_utente
+    def __init__(self, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None, bio=None):
+    #    self.id_utente = id_utente
         self.username = username
         self.immagine = immagine
         self.nome = nome
         self.cognome = cognome
-        self.password_hash = password
+        self.password_ = password
         self.email = email
         self.sesso = sesso
         self.eta = eta
@@ -89,7 +89,7 @@ class Users(UserMixin, db.Model):
 
 
     def verify_password(self, password):
-        return self.password_hash == password
+        return self.password_ == password
 
     def url_photo(self):
         if self.immagine:
@@ -142,13 +142,15 @@ class UserInteressi(db.Model, UserMixin):
         self.id_interessi = id_interessi
 
 class Amici(db.Model, UserMixin):
-    __tablename__ = 'amici'
+    tablename = 'amici'
 
+    id_amicizia= Column(Integer, primary_key=True, autoincrement=True)
     io_utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     user_amico = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     stato = Column(SQLAlchemyEnum(Stato), nullable=False)
 
-    def __init__(self, io_utente, user_amico, stato):
+    def init(self, id_amicizia, io_utente, user_amico, stato):
+        self.id_amicizia = id_amicizia
         self.io_utente = io_utente
         self.user_amico = user_amico
         self.stato = stato
@@ -272,7 +274,7 @@ def log():
         password = request.form['password']
 
         user = Users.query.filter_by(email=email).first()
-        if user and user.verify_password(password):
+        if user and user.verify_password(password_):
             login_user(user)
             session['id_utente'] = user.id_utente
             session['role'] = user.ruolo.value
@@ -331,6 +333,7 @@ def inserzionista(username):
     user = Users.query.filter_by(username=username).first_or_404()
     return render_template('home_inserzionista.html', user=user)
 
+
 @app.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
     if request.method == "POST":
@@ -354,12 +357,18 @@ def addprofile():
             flash("Password non valida", category="alert alert-warning")
             return render_template('registrazione.html')
 
+        
+        existing_user = Users.query.filter_by(username=username).first()
+        if existing_user:
+            flash("ERROR: già registrato", "warning")
+            return render_template('registrazione.html')
+        
         try:
             user = Users(
                 username=username,
                 nome=nome,
                 cognome=cognome,
-                password_hash=password,  # Assuming you have a mechanism to hash passwords
+                password=password,  # Assuming you have a mechanism to hash passwords
                 email=email,
                 sesso=sesso,
                 eta=eta,
