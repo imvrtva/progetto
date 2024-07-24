@@ -3,7 +3,7 @@
 {% block title %}{{ user.username }}'s Profile{% endblock %}
 
 {% block content %}
-<div class="container mt-6">
+<div class="container mt-1"> <!-- Ridotto il margine superiore -->
     <!-- Profilo Header -->
     <div class="profile-header d-flex align-items-center mb-4">
         <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
@@ -30,17 +30,23 @@
 
             {% if current_user.id_utente != user.id_utente %}
                 {% if is_friend %}
-                    <p>You are friends.</p>
+                    <form action="{{ url_for('cancel_friend_request', user_id=user.id_utente) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Segui giá</button>
+                    </form>
                 {% elif is_pending %}
-                    <p>Friend request pending.</p>
+                    <form action="{{ url_for('cancel_friend_request', user_id=user.id_utente) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Richiesta inviata</button>
+                    </form>
                 {% else %}
-                    <form action="{{ url_for('toggle_follow', user_id=user.id_utente) }}" method="post">
-                        <button type="submit" class="btn btn-primary">Send Friend Request</button>
+                    <form action="{{ url_for('send_friend_request', user_id=user.id_utente) }}" method="post">
+                        <button type="submit" class="btn btn-primary">Segui</button>
                     </form>
                 {% endif %}
+            {% else %}
+                <form method="POST" action="{{ url_for('modifica_profilo') }}">
+                    <button type="submit" class="btn btn-primary">Modifica Profilo</button>
+                </form>
             {% endif %}
-            
-
         </div>
     </div>
     <hr>
@@ -50,17 +56,19 @@
         {% if posts %}
             {% for post in posts %}
                 <div class="col-md-4 mb-4">
-                    <div class="card border-0 shadow-sm">
-                        {% if post.media %}
-                            <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
-                        {% endif %}
-                        <div class="card-body">
-                            <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                    <a href="{{ url_for('post_details', post_id=post.id) }}" class="text-decoration-none">
+                        <div class="card border-0 shadow-sm h-100">
+                            {% if post.media %}
+                                <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
+                            {% endif %}
+                            <div class="card-body">
+                                <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                            </div>
+                            <div class="card-footer text-muted text-center border-0 bg-light">
+                                {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
+                            </div>
                         </div>
-                        <div class="card-footer text-muted text-center border-0 bg-light">
-                            {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
-                        </div>
-                    </div>
+                    </a>
                 </div>
             {% endfor %}
         {% else %}
@@ -74,7 +82,7 @@
     .container {
         padding-top: 10px; /* Aggiungi spazio sopra il contenuto per evitare che sia coperto */
     }
-    
+
     .profile-header {
         border-bottom: 1px solid #e6e6e6;
         padding-bottom: 1rem; /* Aggiunto padding per il profilo */
@@ -91,8 +99,7 @@
 
     .profile-stats div {
         font-size: 0.9rem;
-        margin-right: 50px;
-        margin-left: 50px; /* Ridotto il margine per una visualizzazione più equilibrata */
+        margin-right: 20px; /* Ridotto il margine per una visualizzazione più equilibrata */
     }
 
     .bio {
@@ -123,5 +130,14 @@
         background-color: #007bb5;
         border-color: #007bb5;
     }
-</style>
 
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+    }
+</style>
