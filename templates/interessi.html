@@ -1,33 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Seleziona i tuoi interessi</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Scelta Interessi</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            color: #333;
+        }
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .grid-item {
+            flex: 1 1 calc(25% - 30px);
+            box-sizing: border-box;
+            overflow: hidden;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            transition: transform 0.3s;
+        }
+        .grid-item:hover {
+            transform: scale(1.05);
+        }
+        .grid-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .grid-item .overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            text-align: center;
+            padding: 10px;
+            display: none;
+        }
+        .grid-item:hover .overlay {
+            display: block;
+        }
+        .form-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .form-container form {
+            display: inline-block;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .form-container input[type="submit"] {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .form-container input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="mt-5">Seleziona i tuoi interessi</h1>
-        <form method="POST" action="{{ url_for('interessi') }}">
-            <div class="form-group">
-                <label for="interessi">Interessi:</label>
-                <div id="interessi">
-                    {% for interesse in interessi %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="interessi" value="{{ interesse.id_interessi }}" id="interesse{{ interesse.id_interessi }}">
-                            <label class="form-check-label" for="interesse{{ interesse.id_interessi }}">
-                                {{ interesse.nome }}
-                            </label>
-                        </div>
-                    {% endfor %}
-                </div>
+        <div class="header">
+            <h1>Scopri i Tuoi Interessi</h1>
+        </div>
+        <div class="grid">
+            <div class="grid-item">
+                <img src="../contenuti/sport.jpg" alt="Sport">
+                <div class="overlay">Sport</div>
+                <input type="checkbox" name="interessi" value="Sport" id="sport">
             </div>
-            <button type="submit" class="btn btn-primary">Salva Interessi</button>
-        </form>
+            <div class="grid-item">
+                <img src="../contenuti/natura.jpg" alt="Natura">
+                <div class="overlay">Natura</div>
+                <input type="checkbox" name="interessi" value="Natura" id="natura">
+            </div>
+            <div class="grid-item">
+                <img src="../contenuti/lettura.jpg" alt="Lettura">
+                <div class="overlay">Lettura</div>
+                <input type="checkbox" name="interessi" value="Lettura" id="lettura">
+            </div>
+            <div class="grid-item">
+                <img src="../contenuti/animali.jpg" alt="Animali">
+                <div class="overlay">Animali</div>
+                <input type="checkbox" name="interessi" value="Animali" id="animali">
+            </div>
+        </div>
+        <div class="form-container">
+            <form action="/iscrivi_interessi" method="post">
+                <input type="submit" value="Iscrivimi">
+            </form>
+        </div>
     </div>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>

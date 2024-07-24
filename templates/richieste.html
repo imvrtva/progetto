@@ -15,7 +15,7 @@
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{ user.nome }} {{ user.cognome }} (@{{ user.username }})
                         <div>
-                            <form method="POST" action="{{ url_for('accetta_richiesta', request_id=request.id) }}" style="display: inline;">
+                            <form method="POST" action="{{ url_for('accept_request', request_id=request.id) }}" style="display: inline;">
                                 <button type="submit" class="btn btn-success btn-sm">Accetta</button>
                             </form>
                             <form method="POST" action="{{ url_for('rifiuta_richiesta', request_id=request.id) }}" style="display: inline;">
@@ -31,3 +31,4 @@
     </div>
 </body>
 </html>
+

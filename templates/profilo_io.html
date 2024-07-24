@@ -3,25 +3,25 @@
 {% block title %}Profilo Utente{% endblock %}
 
 {% block content %}
-<div class="container mt-6">
+<div class="container mt-1"> <!-- Ridotto il margine superiore -->
     <!-- Profilo Header -->
     <div class="profile-header d-flex align-items-center mb-4">
         <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
              alt="Foto Profilo" class="profile-img rounded-circle mx-5" 
              style="width: 120px; height: 120px; object-fit: cover;">
-        <div class="profile-info ml-4"> <!-- Aggiunto ml-4 per distanziare dalla foto profilo -->
+        <div class="profile-info ml-4">
             <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
             <p class="text-muted mb-2">@{{ user.username }}</p>
-            <div class="profile-stats d-flex justify-content-between ">
-                <div class="text-center"> <!-- Aggiunto mr-3 per distanziare -->
+            <div class="profile-stats d-flex justify-content-between">
+                <div class="text-center">
                     <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
                     Follower
                 </div>
-                <div class="text-center mx-5"> <!-- Aggiunto mx-3 per distanziare -->
+                <div class="text-center mx-5">
                     <span class="d-block font-weight-bold">{{ user.following_count }}</span>
                     Seguiti
                 </div>
-                <div class="text-center "> <!-- Aggiunto ml-3 per distanziare -->
+                <div class="text-center">
                     <span class="d-block font-weight-bold">{{ user.post_count }}</span>
                     Post
                 </div>
@@ -47,9 +47,7 @@
                         <div class="card-body">
                             <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
                         </div>
-                        <div class="card-footer text-muted text-center border-0 bg-light">
-                            {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
-                        </div>
+
                     </div>
                 </a>
             </div>
@@ -60,57 +58,3 @@
     </div>
 </div>
 {% endblock %}
-<style>
-    .container {
-        padding-top: 10px; /* Aggiungi spazio sopra il contenuto per evitare che sia coperto */
-    }
-    
-    .profile-header {
-        border-bottom: 1px solid #e6e6e6;
-        padding-bottom: 101px;
-    }
-
-    .profile-img {
-        border: 2px solid #ddd;
-        background-color: #fff;
-    }
-
-    .profile-info {
-        max-width: 500px;
-    }
-
-    .profile-stats div {
-        font-size: 0.9rem;
-        margin-right: 50px; /* Aggiunto per separare le statistiche */
-        margin-left: 100px; /* Aggiunto per separare le statistiche */
-    }
-
-    .bio {
-        font-style: italic;
-        color: #333;
-    }
-
-    .card-img-top {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
-    }
-
-    .card-body {
-        padding: 15px;
-    }
-
-    .card-footer {
-        font-size: 0.8rem;
-    }
-
-    .btn-primary {
-        background-color: #0095f6;
-        border-color: #0095f6;
-    }
-
-    .btn-primary:hover {
-        background-color: #007bb5;
-        border-color: #007bb5;
-    }
-</style>

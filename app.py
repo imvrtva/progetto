@@ -683,6 +683,7 @@ def elimina_mi_piace(post_id):
 
 #------------------------------ Notifiche -------------------------------#
 
+
 @app.route('/notifiche', methods=['GET'])
 @login_required
 def notifiche():
@@ -743,6 +744,7 @@ def notifiche():
                            all_notifications=all_notifications, 
                            friend_request_count=friend_request_count)
 
+
 def time_since(post_time):
     # Definire il fuso orario italiano
     italian_tz = pytz.timezone('Europe/Rome')
@@ -775,9 +777,6 @@ def richieste():
     return render_template('richieste.html', friend_requests=friend_requests)
 
 
-
-
-
 #------------------------------ seguire e accettare -------------------------------#
 
     # inviare una richiesta ad una persona
@@ -797,13 +796,10 @@ def toggle_follow(user_id):
     else:
         if action == 'follow':
             new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.in_attesa.value)
-            db.session.add(new_relationship)
+            db.session.add(new_relationship)      
 
     db.session.commit()
     return redirect(request.referrer)
-
-
-
 
 
 
@@ -821,7 +817,7 @@ def accept_request(user_id):
 
 
 
-    #rifiuta richiesta
+#rifiuta richiesta
 
 @app.route('/richieste/<string:utente>', methods=['POST'])
 @login_required

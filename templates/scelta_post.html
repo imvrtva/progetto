@@ -1,12 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Dettagli del Post{% endblock %}
+
+{% block content %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scegli Tipo di Post</title>
+    <h1>Cosa vuoi pubblicare?</h1>
+    <style>
+        form {
+            margin: 10px 0;
+        }
+        button {
+            background-color: #5f99bb;
+            color: white;
+            border: none;
+            padding: 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 18px;
+            width: 100%;
+            margin: 4px 0;
+            transition-duration: 0.4s;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        button:hover {
+            background-color: rgb(100, 101, 168);
+            color: black;
+        }
+    </style>
 </head>
 <body>
-    <h1>Scegli il tipo di post da pubblicare</h1>
+
     <form action="/pubblica_testo" method="get">
         <button type="submit">Pubblica Testo</button>
     </form>
@@ -18,4 +47,4 @@
     </form>
 </body>
 </html>
-
+{% endblock %}

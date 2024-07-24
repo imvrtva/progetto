@@ -5,10 +5,9 @@
 {% block content %}
 <!DOCTYPE html>
 <html lang="en">
-<head class="spazio">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <p> </p>
     <h3>Dettagli del Post</h3>
     <!-- Include Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -19,6 +18,7 @@
             margin-bottom: 20px;
             background-color: #fff;
             border-radius: 8px;
+            position: relative; /* Ensure the delete button can be positioned absolutely within this container */
         }
         .post-header {
             display: flex;
@@ -64,12 +64,17 @@
             display: flex;
             align-items: center;
             margin-bottom: 10px;
+            position: relative; /* Ensure the delete button can be positioned absolutely within each comment */
+            padding-right: 60px; /* Add padding to make space for the delete button */
         }
         .comment img {
             width: 30px;
             height: 30px;
             border-radius: 50%;
             margin-right: 10px;
+        }
+        .comment-content {
+            flex: 1; /* Allow content to take remaining space */
         }
         .comment-form textarea {
             width: 100%;
@@ -90,46 +95,50 @@
             background-color: #0056b3;
         }
         .delete-button {
-            background: none;
-            border: none;
-            color: red;
-            cursor: pointer;
-            font-size: 14px;
-            margin-left: 10px;
-        }
-
-        .delete:hover {
-            background-color: #0036cc; /* Darker color on hover */
-            transform: scale(1.05); /* Slight zoom effect */
-        }
-
-        .delete:focus {
-            outline: none; /* Remove default focus outline */
-        }
-
-        .delete {
-            position: absolute; /* Position the button absolutely within the comment container */
-            top: 170px; /* Adjust according to your layout */
-            right: 125px; /* Adjust according to your layout */
+            position: absolute; /* Position the button absolutely within the post container */
+            top: 10px; /* Adjust the position from the top */
+            right: 10px; /* Adjust the position from the right */
             background-color: #4da0ff; /* Button background color */
             color: white;
             border: none;
             border-radius: 4px; /* Rounded corners */
             font-size: 14px; /* Font size */
             cursor: pointer;
+            padding: 5px 10px; /* Padding for button */
             transition: background-color 0.3s, transform 0.3s; /* Smooth transitions */
             z-index: 10; /* Ensure it's on top of other content */
+        }
+        .delete-button:hover {
+            background-color: #0036cc; /* Darker color on hover */
+            transform: scale(1.05); /* Slight zoom effect */
+        }
+        .delete-button:focus {
+            outline: none; /* Remove default focus outline */
+        }
+        .comment .delete-comment {
+            color: red; /* Text color for delete comment button */
+            background: none; /* Remove background */
+            border: none; /* Remove border */
+            cursor: pointer; /* Pointer cursor on hover */
+            font-size: 14px; /* Font size */
+            position: absolute; /* Position it absolutely to the right */
+            right: 300px; /* Adjust the position from the right */
+            bottom: 0; /* Align it to the bottom of the comment container */
+            transition: color 0.3s; /* Smooth color transition */
+        }
+        .comment .delete-comment:hover {
+            color: darkred; /* Darker color on hover */
         }
     </style>
 </head>
 <body>
-    <!-- Pulsante di Eliminazione -->
-    {% if post.utente == current_user.id_utente %}
-        <form method="POST" action="{{ url_for('elimina_post', post_id=post.id) }}" style="display:inline;" class="delete">
-            <button type="submit" class="btn btn-danger btn-sm">Elimina</button>
-        </form>
-    {% endif %}
     <div class="post-container">
+        <!-- Pulsante di Eliminazione del Post -->
+        {% if post.utente == current_user.id_utente %}
+            <form method="POST" action="{{ url_for('elimina_post', post_id=post.id) }}" style="display:inline;">
+                <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo post?');">Elimina</button>
+            </form>
+        {% endif %}
         <!-- Data di Creazione -->
         <div class="card-footer text-muted text-center border-0 bg-white">
             pubblicato il: {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
@@ -139,6 +148,7 @@
             <p>@{{ post_user.username }}</p>
         </div>        
         <div class="post-content">
+            <p>{{ post.testo }}</p> <!-- Always show the post text -->
             {% if post.tipo_post == 'immagini' %}
                 <img src="{{ url_for('static', filename='contenuti/' ~ post.media) }}" alt="Post Image" style="width: 100%; border-radius: 8px;">
             {% elif post.tipo_post == 'video' %}
@@ -146,9 +156,7 @@
                     <source src="{{ url_for('static', filename='contenuti/' ~ post.media) }}" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
-            {% elif post.tipo_post == 'testo' %}
-                <p>{{ post.testo }}</p>
-            {% endif %} 
+            {% endif %}
         </div>
         <div class="post-footer">
             <form method="post" action="{{ url_for('toggle_like', post_id=post.id) }}">
@@ -166,11 +174,12 @@
             <div class="comment">
                 {% if comment.id in comment_users %}
                     <img src="{{ comment_users[comment.id].url_photo() }}" alt="{{ comment_users[comment.id].username }}">
-                    <strong>@{{ comment_users[comment.id].username }}:</strong> {{ comment.content }}
+                    <div class="comment-content">
+                        <strong>@{{ comment_users[comment.id].username }}:</strong> {{ comment.content }}
+                    </div>
                     {% if comment.utente_id == current_user.id_utente or post.utente == current_user.id_utente %}
-
                         <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" style="display: inline;">
-                            <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
+                            <button type="submit" class="delete-comment" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
                         </form>
                     {% endif %}
                 {% else %}

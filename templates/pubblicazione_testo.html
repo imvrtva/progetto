@@ -1,17 +1,80 @@
-/pubblica testo
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pubblica Testo</title>
-</head>
-<body>
-    <h1>Pubblica un Testo</h1>
-    <form action="/pubblica_testo" method="post">
-        <textarea name="testo" rows="10" cols="30" placeholder="Scrivi il tuo testo qui..."></textarea>
-        <br>
-        <button type="submit">Pubblica</button>
-    </form>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Pubblica Testo{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 text-center">Pubblica un Testo</h1>
+<form action="/pubblica_testo" method="post" class="needs-validation" novalidate>
+    <div class="mb-4">
+        <label for="testo" class="form-label">Descrizione</label>
+        <textarea class="form-control" id="testo" name="testo" rows="5" placeholder="Scrivi una descrizione..." required></textarea>
+        <div class="invalid-feedback">
+            Per favore, inserisci una descrizione.
+        </div>
+    </div>
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-upload"></i> Pubblica
+        </button>
+    </div>
+</form>
+
+<style>
+    form {
+        max-width: 600px; /* Limita la larghezza del modulo */
+        margin: auto; /* Centra il modulo */
+        background-color: #fff; /* Colore di sfondo bianco per il modulo */
+        padding: 40px; /* Aggiungi padding per il contenuto */
+        border-radius: 10px; /* Angoli arrotondati */
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); /* Ombra leggera per il contenitore */
+    }
+    h1 {
+        color: #333; /* Colore del testo */
+        margin-bottom: 20px; /* Margine inferiore */
+    }
+    .form-label {
+        font-weight: bold; /* Testo in grassetto per le etichette */
+        font-size: 1.1rem; /* Dimensione del font aumentata */
+    }
+    .form-control {
+        border-radius: 6px; /* Angoli arrotondati per gli input */
+        border: 1px solid #ced4da; /* Bordo leggero */
+        padding: 10px; /* Padding interno */
+        font-size: 1rem; /* Dimensione del font */
+    }
+    .btn-primary {
+        background-color: #007bff; /* Colore del pulsante */
+        border-color: #007bff; /* Colore del bordo del pulsante */
+        padding: 10px 20px; /* Padding del pulsante */
+        font-size: 1.2rem; /* Dimensione del font del pulsante */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-primary:hover {
+        background-color: #0056b3; /* Colore del pulsante al passaggio del mouse */
+        border-color: #0056b3; /* Colore del bordo del pulsante al passaggio del mouse */
+    }
+    .btn-primary i {
+        margin-right: 10px; /* Spazio tra l'icona e il testo */
+    }
+</style>
+
+<script>
+    // Bootstrap form validation
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                }, false)
+            })
+    })()
+</script>
+{% endblock %}

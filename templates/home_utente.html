@@ -32,15 +32,28 @@
     .autocomplete-suggestion:hover {
         background-color: #eee;
     }
+    .profile-img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+    .post-media {
+        max-width: 100%;
+        height: auto;
+    }
+    .card {
+        margin-bottom: 1rem;
+    }
 </style>
 
-<div class="container">
+<div class="container mt-4">
     <h2>Ricerca Persone</h2>
     <form id="search-form" class="mb-3" onsubmit="return false;">
         <div class="input-group" id="search">
             <input type="text" id="search-input" name="query" class="form-control" placeholder="Cerca persone..." aria-label="Cerca persone" autocomplete="off">
-        <div id="suggestions" class="autocomplete-suggestions"></div>
-    </div>
+            <div id="suggestions" class="autocomplete-suggestions"></div>
+        </div>
     </form>
 
     <h2>I tuoi feed</h2>
@@ -49,12 +62,24 @@
             {% for post in posts %}
                 <li class="post-item mb-3">
                     <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
-                            <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
-                            {% if post.media %}
-                                <img src="{{ url_for('static', filename=post.media) }}" class="img-fluid" alt="Media">
-                            {% endif %}
+                        <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
+                        <div class="card-body d-flex align-items-center">
+                            <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti[post.utente].username }}">
+                            <div>
+                                <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
+                                <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                                
+                                {% if post.media %}
+                                    {% if post.tipo_post == 'immagini' %}
+                                        <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
+                                    {% elif post.tipo_post == 'video' %}
+                                        <video class="post-media" controls>
+                                            <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4" alt="video del post">
+                                            Il tuo browser non supporta il tag video.
+                                        </video>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="card-footer text-muted">
                             {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
@@ -103,7 +128,7 @@
     document.getElementById('suggestions').addEventListener('click', function(e) {
         if (e.target && e.target.classList.contains('autocomplete-suggestion')) {
             const userId = e.target.getAttribute('data-id');
-            window.location.href = `/profilo_amico/${userId}`; // Supponendo che hai una route per i profili utente
+            window.location.href = `/profilo_amico/${userId}`;
         }
     });
 
