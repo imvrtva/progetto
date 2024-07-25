@@ -45,10 +45,6 @@ class Sesso(Enum):
     femmina = "femmina"
     altro = "altro"
 
-class Stato(Enum):
-    accettato = "accettato"
-    in_attesa = "in attesa"
-    non_accettato = "non accettato"
 
 class Users(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -66,13 +62,13 @@ class Users(UserMixin, db.Model):
     bio = Column(String(250), unique=False, nullable=True)
 
 
-    def __init__(self, username, nome, cognome, password, email, sesso, eta, ruolo, immagine=None, bio=None):
+    def __init__(self, username, nome, cognome, password_, email, sesso, eta, ruolo, immagine=None, bio=None):
     #    self.id_utente = id_utente
         self.username = username
         self.immagine = immagine
         self.nome = nome
         self.cognome = cognome
-        self.password_ = password
+        self.password_ = password_
         self.email = email
         self.sesso = sesso
         self.eta = eta
@@ -99,11 +95,11 @@ class Users(UserMixin, db.Model):
         
     @property
     def follower_count(self):
-        return Amici.query.filter_by(user_amico=self.id_utente, stato=Stato.accettato).count()
+        return Amici.query.filter_by(user_amico=self.id_utente).count()
 
     @property
     def following_count(self):
-        return Amici.query.filter_by(io_utente=self.id_utente, stato=Stato.accettato).count()
+        return Amici.query.filter_by(io_utente=self.id_utente).count()
 
     @property
     def post_count(self):
@@ -134,26 +130,27 @@ class Interessi(db.Model, UserMixin):
 class UserInteressi(db.Model, UserMixin):
     __tablename__ = 'user_interessi'
 
-    utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
+    utente_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     id_interessi = Column(Integer, ForeignKey('interessi.id_interessi'), nullable=False, primary_key=True)
 
-    def __init__(self, utente, id_interessi):
-        self.utente = utente
+    def __init__(self, utente_id, id_interessi):
+        self.utente_id = utente_id
         self.id_interessi = id_interessi
 
 class Amici(db.Model, UserMixin):
-    tablename = 'amici'
+    __tablename__ = 'amici'
 
     id_amicizia= Column(Integer, primary_key=True, autoincrement=True)
     io_utente = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     user_amico = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
-    stato = Column(SQLAlchemyEnum(Stato), nullable=False)
+    seguito_at= Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
-    def init(self, id_amicizia, io_utente, user_amico, stato):
+    def init(self, id_amicizia, io_utente, user_amico):
         self.id_amicizia = id_amicizia
         self.io_utente = io_utente
         self.user_amico = user_amico
-        self.stato = stato
+        self.seguito_at=seguito_at
+
 
 class Post(db.Model, UserMixin):
     __tablename__ = 'posts'
@@ -315,7 +312,7 @@ def utente(id_utente):
     current_user_id = current_user.id_utente
 
     # Recupera gli utenti seguiti dall'utente corrente
-    seguiti = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id, stato=Stato.accettato).all()]
+    seguiti = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
 
     # Recupera i post degli utenti seguiti
     posts = Post.query.filter(Post.utente.in_(seguiti)).order_by(Post.data_creazione.desc()).all()
@@ -333,12 +330,11 @@ def inserzionista(username):
     user = Users.query.filter_by(username=username).first_or_404()
     return render_template('home_inserzionista.html', user=user)
 
+
 @app.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
-    if request.method== "GET":
-        return render_template('registrazione.html')
-    else:
-        details =request.form
+    if request.method == "POST":
+        details = request.form
         username = details['username']
         nome = details['nome']
         cognome = details['cognome']
@@ -349,29 +345,39 @@ def addprofile():
         eta = details['eta']
         ruolo = details['ruolo']
         errore = False
-        
-        if(not check_email(email)):
-            flash("Formato email sbagliato", "alert alert-warning")
-            errore= True
-        if(not check_password(password)):
-            flash("Formato password sbagliato", "alert alert-warning")
-            errore =True
-        if not cpassword==password:
-            flash("Le Passoword sono diverse", "alert alert-warning")
-            errore = True
-        if errore:
-            render_template('registrazione.html')
 
-    #    try:
-            
-		#	db.engine.execute("INSERT INTO users VALUES(%s,%s,%s,%s,%s,%s,%s,%s)", (username, nome, cognome,password,email,sesso,eta,ruolo))
-		#	flash("Registrazione riuscita", category="alert alert-success")
-		#except:
-		#	flash("ERROR: Utente gia reggistrato ", "alert alert-warning")
-		#	return render_template('registrazione.html')
+        if check_email(email):
+            flash("Email non valida", category="alert alert-warning")
+            return render_template('registrazione.html')
 
-    return redirect (url_for('log'))
+        if check_password(password):
+            flash("Password non valida", category="alert alert-warning")
+            return render_template('registrazione.html')
 
+        try:
+            user = Users(
+                username=username,
+                nome=nome,
+                cognome=cognome,
+                password_=password,  # Assuming you have a mechanism to hash passwords
+                email=email,
+                sesso=sesso,
+                eta=eta,
+                ruolo=ruolo
+            )
+            db.session.add(user)
+            db.session.commit()
+            flash("Registrazione riuscita", category="alert alert-success")
+            # Store the username in the session
+            session['new_user'] = username
+            # Redirect to the interests selection page
+            return redirect(url_for('interessi'))
+        except IntegrityError:
+            db.session.rollback()
+            flash("ERROR: Utente già registrato", category="alert alert-warning")
+            return render_template('registrazione.html')
+
+    return render_template('registrazione.html')
 
 
 
@@ -381,19 +387,31 @@ def interessi():
         return render_template('interessi.html')
     else:  # if POST
         details = request.form
-        interessi = details.getlist('interessi')
-        errore = False
+        interessi_nomi = details.getlist('interessi')
 
         try:
-            # Retrieve the username from the session
+            # Recupera il nome utente dalla sessione
             username = session.get('new_user')
             if not username:
                 flash("Errore: Nessun utente trovato. Per favore, registra prima un account.", category="alert alert-warning")
                 return redirect(url_for('registrazione'))
             
-            for interesse in interessi:
-                user_interesse = UserInteressi(utente=username, id_interessi=interesse)
-                db.session.add(user_interesse)
+            # Recupera l'ID dell'utente usando il nome utente
+            user = Users.query.filter_by(username=username).first()
+            if not user:
+                flash("Errore: Utente non trovato.", category="alert alert-warning")
+                return redirect(url_for('registrazione'))
+
+            user_id = user.id_utente
+            
+            # Rimuovi tutti gli interessi esistenti per l'utente
+            UserInteressi.query.filter_by(utente_id=user_id).delete()
+
+            for nome_interesse in interessi_nomi:
+                interesse = Interessi.query.filter_by(nome=nome_interesse).first()
+                if interesse:
+                    user_interesse = UserInteressi(utente_id=user_id, id_interessi=interesse.id_interessi)
+                    db.session.add(user_interesse)
             db.session.commit()
             flash("Interessi aggiunti correttamente", category="alert alert-success")
         except IntegrityError:
@@ -402,7 +420,9 @@ def interessi():
             return render_template('interessi.html')
 
         # Redirect to the login page after adding interests
-        return redirect(url_for('login.log'))
+        return redirect(url_for('log'))
+
+
 
 @app.route('/profilo', methods=['GET', 'POST'])
 @login_required
@@ -701,11 +721,10 @@ def notifiche():
         .filter(PostComments.utente_id != user_id)\
         .all()
 
-    stato = 'in_attesa'
     # Recuperare le richieste di amicizia
     friend_requests = db.session.query(Amici, Users)\
         .join(Users, Amici.io_utente == Users.id_utente)\
-        .filter(Amici.user_amico == user_id, Amici.stato == stato)\
+        .filter(Amici.user_amico == user_id)\
         .all()
 
     # Creare una lista di notifiche combinata
@@ -730,15 +749,20 @@ def notifiche():
             'time_ago': time_since(comment.created_at)
         })
 
+    # Aggiungere le notifiche di nuovi follower
+    for follower, user in friend_requests:
+        all_notifications.append({
+            'type': 'follower',
+            'user': user,
+            'time_ago': time_since(follower.seguito_at)
+        })
+
     # Ordinare le notifiche per data
     all_notifications.sort(key=lambda x: x['time_ago'], reverse=True)
 
-    # Contare le richieste di amicizia in sospeso
-    friend_request_count = len(friend_requests)
 
     return render_template('notifiche.html', 
-                           all_notifications=all_notifications, 
-                           friend_request_count=friend_request_count)
+                           all_notifications=all_notifications)
 
 
 def time_since(post_time):
@@ -762,87 +786,6 @@ def time_since(post_time):
         return "ora"
 
 
-@app.route('/richieste', methods=['GET'])
-@login_required
-def richieste():
-    user_id = current_user.id_utente
-
-    # Recuperare le richieste di amicizia
-    friend_requests = db.session.query(Amici, Users).join(Users, Amici.io_utente == Users.id_utente).filter(Amici.user_amico == user_id, Amici.stato == Stato.in_attesa).all()
-
-    return render_template('richieste.html', friend_requests=friend_requests)
-
-
-#------------------------------ seguire e accettare -------------------------------#
-
-    # inviare una richiesta ad una persona
-
-@app.route('/toggle_follow/<int:user_id>', methods=['POST'])
-@login_required
-def toggle_follow(user_id):
-    user_to_follow = Users.query.get_or_404(user_id)
-    existing_relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
-
-    # Get the action from the form
-    action = request.form.get('action')
-
-    if existing_relationship:
-        if action == 'unfollow':
-            db.session.delete(existing_relationship)
-    else:
-        if action == 'follow':
-            new_relationship = Amici(io_utente=current_user.id_utente, user_amico=user_id, stato=Stato.in_attesa.value)
-            db.session.add(new_relationship)      
-
-    db.session.commit()
-    return redirect(request.referrer)
-
-
-
-
-
-@app.route('/accept_request/<int:user_id>', methods=['POST'])
-@login_required
-def accept_request(user_id):
-    relationship = Amici.query.filter_by(io_utente=user_id, user_amico=current_user.id_utente).first()
-    if relationship and relationship.stato.value == Stato.in_attesa.value:
-        relationship.stato.value = Stato.accettato.value
-        db.session.commit()
-    return redirect(request.referrer)
-
-
-
-
-#rifiuta richiesta
-
-@app.route('/richieste/<string:utente>', methods=['POST'])
-@login_required
-def rifiuta_richiesta(utente):
-    current_user = request.json['current_user']
-
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-        
-        # Aggiorna lo stato della richiesta di amicizia
-        cursor.execute("""
-            DELETE FROM amici 
-            WHERE stato= ? AND user_amico= ? AND io_utente=?
-        """, ('in attesa', utente, current_user))
-        
-        if cursor.rowcount == 0:
-            return jsonify({"message": "Errore: richiesta di amicizia non trovata o già accettata"}), 400
-        
-        conn.commit()
-        return jsonify({"message": "Richiesta di amicizia rifiutata con successo :) "}), 200
-
-    except sqlite3.Error as e:
-        return jsonify({"message": "Errore nel database: {e}"}), 500
-
-    finally:
-        conn.close()
-        return render_template('profilo_amico.html', user=utente)
-
 
 #------------------------------ ricerca utente -------------------------------#
 
@@ -859,13 +802,32 @@ def search_suggestions():
         'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
     })
 
-@app.route('/profilo_amico/<int:user_id>', methods=['GET', 'POST'])
+@app.route('/profilo_amico/<int:id_amico>', methods=['GET', 'POST'])
 @login_required
-def profilo_amico(user_id):
-    user = Users.query.get_or_404(user_id)
-    relationship = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=user_id).first()
-    posts = Post.query.filter_by(utente=user_id).all()
-    return render_template('profilo_amico.html', user=user, relationship=relationship, posts=posts, Stato=Stato)
+def profilo_amico(id_amico):
+    amico = Users.query.get(id_amico)
+    if not amico:
+        return "Utente non trovato", 404
+
+    amicizia = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=id_amico).first()
+
+    if request.method == 'POST':
+        if amicizia:
+            # Se l'amicizia esiste, togli la connessione
+            db.session.delete(amicizia)
+        else:
+            # Altrimenti, crea una nuova amicizia
+            amicizia = Amici(io_utente=current_user.id_utente, user_amico=id_amico)
+            db.session.add(amicizia)
+        db.session.commit()
+        return redirect(url_for('profilo_amico', id_amico=id_amico))
+
+    # Recupera i post solo se si segue l'utente
+    posts = []
+    if amicizia:
+        posts = Post.query.filter_by(utente=id_amico).all()
+
+    return render_template('profilo_amico.html', amico=amico, seguendo=amicizia is not None, posts=posts)
 
 #------------------------------- rimuovere amici ---------------------------------#
 

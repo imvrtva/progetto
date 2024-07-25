@@ -1,4 +1,4 @@
-INSERT INTO users (username, immagine, nome, cognome, password_hash, email, sesso, eta, ruolo)
+INSERT INTO users (username, immagine, nome, cognome, password_, email, sesso, eta, ruolo)
 VALUES 
 ('alice', NULL, 'Alice', 'Rossi', 'hashpassword1', 'alice@example.com', 'femmina', 30, 'utente'),
 ('bob', NULL, 'Bob', 'Bianchi', 'hashpassword2', 'bob@example.com', 'maschio', 25, 'utente'),

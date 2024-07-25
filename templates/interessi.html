@@ -38,6 +38,7 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             position: relative;
             transition: transform 0.3s;
+            cursor: pointer; /* Make items look clickable */
         }
         .grid-item:hover {
             transform: scale(1.05);
@@ -58,7 +59,7 @@
             padding: 10px;
             display: none;
         }
-        .grid-item:hover .overlay {
+        .grid-item.selected .overlay {
             display: block;
         }
         .form-container {
@@ -91,33 +92,64 @@
         <div class="header">
             <h1>Scopri i Tuoi Interessi</h1>
         </div>
-        <div class="grid">
-            <div class="grid-item">
-                <img src="../contenuti/sport.jpg" alt="Sport">
-                <div class="overlay">Sport</div>
-                <input type="checkbox" name="interessi" value="Sport" id="sport">
+
+        <!-- Messaggi di flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="alert alert-dismissible fade show" role="alert">
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Griglia degli interessi -->
+        <form action="{{ url_for('interessi') }}" method="post">
+            <div class="grid">
+                <div class="grid-item" onclick="toggleSelection('sport')">
+                    <img src="../contenuti/sport.jpg" alt="Sport">
+                    <div class="overlay">Sport</div>
+                    <input type="checkbox" name="interessi" value="Sport" id="sport" style="display: none;">
+                </div>
+                <div class="grid-item" onclick="toggleSelection('natura')">
+                    <img src="../contenuti/natura.jpg" alt="Natura">
+                    <div class="overlay">Natura</div>
+                    <input type="checkbox" name="interessi" value="Natura" id="natura" style="display: none;">
+                </div>
+                <div class="grid-item" onclick="toggleSelection('lettura')">
+                    <img src="../contenuti/lettura.jpg" alt="Lettura">
+                    <div class="overlay">Lettura</div>
+                    <input type="checkbox" name="interessi" value="Lettura" id="lettura" style="display: none;">
+                </div>
+                <div class="grid-item" onclick="toggleSelection('animali')">
+                    <img src="../contenuti/animali.jpg" alt="Animali">
+                    <div class="overlay">Animali</div>
+                    <input type="checkbox" name="interessi" value="Animali" id="animali" style="display: none;">
+                </div>
             </div>
-            <div class="grid-item">
-                <img src="../contenuti/natura.jpg" alt="Natura">
-                <div class="overlay">Natura</div>
-                <input type="checkbox" name="interessi" value="Natura" id="natura">
-            </div>
-            <div class="grid-item">
-                <img src="../contenuti/lettura.jpg" alt="Lettura">
-                <div class="overlay">Lettura</div>
-                <input type="checkbox" name="interessi" value="Lettura" id="lettura">
-            </div>
-            <div class="grid-item">
-                <img src="../contenuti/animali.jpg" alt="Animali">
-                <div class="overlay">Animali</div>
-                <input type="checkbox" name="interessi" value="Animali" id="animali">
-            </div>
-        </div>
-        <div class="form-container">
-            <form action="/iscrivi_interessi" method="post">
+            <div class="form-container">
                 <input type="submit" value="Iscrivimi">
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
+
+    <script>
+        function toggleSelection(id) {
+            var checkbox = document.getElementById(id);
+            var gridItem = checkbox.parentElement;
+            checkbox.checked = !checkbox.checked;
+
+            // Toggle class 'selected' based on checkbox state
+            if (checkbox.checked) {
+                gridItem.classList.add('selected');
+            } else {
+                gridItem.classList.remove('selected');
+            }
+        }
+    </script>
 </body>
 </html>

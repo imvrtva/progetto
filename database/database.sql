@@ -1,7 +1,6 @@
 CREATE TYPE ruolo AS ENUM('utente', 'pubblicitari');
 CREATE TYPE tipo_post AS ENUM('immagini', 'video', 'testo');
 CREATE TYPE sesso AS ENUM('maschio', 'femmina', 'altro');
-CREATE TYPE stato AS ENUM('accettato', 'in attesa', 'non accettato');
 
 
 CREATE TABLE users (
@@ -34,7 +33,7 @@ CREATE TABLE amici (
     id_amicizia SERIAL PRIMARY KEY,
     io_utente INTEGER REFERENCES users(id_utente),
     user_amico INTEGER REFERENCES users(id_utente),
-    stato stato
+    seguito_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -192,4 +191,3 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER delete_user_followers_cascade
 BEFORE DELETE ON users
 FOR EACH ROW EXECUTE FUNCTION cascade_delete_user_followers();
-
