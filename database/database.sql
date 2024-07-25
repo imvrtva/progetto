@@ -100,6 +100,17 @@ CREATE TABLE target (
     interesse INTEGER REFERENCES interessi(id_interessi)
 );
 
+CREATE TABLE messaggi (
+    id SERIAL PRIMARY KEY,
+    testo TEXT NOT NULL,
+    mittente_id INTEGER NOT NULL,
+    destinatario_id INTEGER NOT NULL,
+    creato_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    FOREIGN KEY (mittente_id) REFERENCES users(id_utente) ON DELETE CASCADE,
+    FOREIGN KEY (destinatario_id) REFERENCES users(id_utente) ON DELETE CASCADE
+);
+
+
 
 
 /*TRIGGHER*/

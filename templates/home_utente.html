@@ -101,7 +101,6 @@
 <script>
     document.getElementById('search-input').addEventListener('input', function() {
         const query = this.value;
-        console.log('Input changed:', query); // Debugging
         const suggestionsBox = document.getElementById('suggestions');
         
         if (query.length < 2) {
@@ -111,16 +110,14 @@
         }
         
         fetch(`/search_suggestions?q=${encodeURIComponent(query)}`)
-            .then(response => {
-                console.log('Response received'); // Debugging
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('Data received:', data); // Debugging
                 if (data.suggestions.length > 0) {
-                    suggestionsBox.innerHTML = data.suggestions.map(user => 
-                        `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
-                    ).join('');
+                    suggestionsBox.innerHTML = data.suggestions
+                        .filter(user => user.id !== {{ current_user.id_utente }}) // Escludi l'utente corrente
+                        .map(user => 
+                            `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
+                        ).join('');
                     suggestionsBox.style.display = 'block';
                 } else {
                     suggestionsBox.innerHTML = '<div class="autocomplete-suggestion">Nessun risultato</div>';

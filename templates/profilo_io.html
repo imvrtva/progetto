@@ -14,12 +14,16 @@
             <p class="text-muted mb-2">@{{ user.username }}</p>
             <div class="profile-stats d-flex justify-content-between">
                 <div class="text-center">
-                    <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
-                    Follower
+                    <a href="{{ url_for('followers_list', user_id=user.id_utente) }}" class="text-dark text-decoration-none">
+                        <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
+                        Follower
+                    </a>
                 </div>
                 <div class="text-center mx-5">
-                    <span class="d-block font-weight-bold">{{ user.following_count }}</span>
-                    Seguiti
+                    <a href="{{ url_for('following_list', user_id=user.id_utente) }}" class="text-dark text-decoration-none">
+                        <span class="d-block font-weight-bold">{{ user.following_count }}</span>
+                        Seguiti
+                    </a>
                 </div>
                 <div class="text-center">
                     <span class="d-block font-weight-bold">{{ user.post_count }}</span>
@@ -47,7 +51,6 @@
                         <div class="card-body">
                             <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
                         </div>
-
                     </div>
                 </a>
             </div>

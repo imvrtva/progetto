@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Following{% endblock %}
+
+{% block content %}
+<style>
+    .custom-heading {
+        color: #000000; /* Change color here */
+    }
+</style>
+
+<div class="container mt-4">
+    <h3 class="font-weight-bold mb-4 custom-heading">Persone che segui:</h3>
+    <div class="row">
+        {% if following %}
+            {% for followee in following %}
+            <div class="col-md-3 mb-4 d-flex">
+                <a href="{{ url_for('profilo_amico', id_amico=followee.id_utente) }}" class="text-decoration-none w-100">
+                    <div class="card border-0 rounded-lg shadow-sm w-100 h-100">
+                        <div class="text-center mt-3">
+                            <img src="{{ url_for('serve_file', filename=followee.immagine) if followee.immagine else url_for('static', filename='default_profile.png') }}" 
+                                 alt="Foto Profilo" class="rounded-circle" 
+                                 style="width: 100px; height: 100px; object-fit: cover; border: 3px solid #f0f0f0;">
+                        </div>
+                        <div class="card-body text-center">
+                            <h5 class="card-title mb-2">{{ followee.username }}</h5>
+                            <p class="card-text text-muted mb-2">{{ followee.nome }} {{ followee.cognome }}</p>
+                        </div>
+                        <div class="text-center mb-3">
+                            <form method="post" action="{{ url_for('unfollow', id_amico=followee.id_utente) }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Unfollow</button>
+                            </form>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-center text-muted">Non segui nessuna persona.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -145,7 +145,7 @@ class Amici(db.Model, UserMixin):
     user_amico = Column(Integer, ForeignKey('users.id_utente'), nullable=False, primary_key=True)
     seguito_at= Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
-    def init(self, id_amicizia, io_utente, user_amico):
+    def init(self, id_amicizia, io_utente, user_amico, seguito_at):
         self.id_amicizia = id_amicizia
         self.io_utente = io_utente
         self.user_amico = user_amico
@@ -238,6 +238,28 @@ class AnnunciLikes(db.Model, UserMixin):
         self.annuncio_id = annuncio_id
         self.user_id = user_id
 
+class Messaggi(db.Model, UserMixin):
+    __tablename__ = 'messaggi'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    testo = Column(Text, nullable=False)
+    mittente_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
+    destinatario_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
+    creato_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
+
+    # Relazioni per accedere ai dettagli del mittente e del destinatario
+    mittente = relationship('Users', foreign_keys=[mittente_id], backref='messaggi_inviati')
+    destinatario = relationship('Users', foreign_keys=[destinatario_id], backref='messaggi_ricevuti')
+
+    def __init__(self, testo, mittente_id, destinatario_id):
+        self.testo = testo
+        self.mittente_id = mittente_id
+        self.destinatario_id = destinatario_id
+
+    def __repr__(self):
+        return f"<Messaggio(id={self.id}, mittente_id={self.mittente_id}, destinatario_id={self.destinatario_id}, creato_at={self.creato_at})>"
+
+
 # Ensure all tables are created within the application context
 with app.app_context():
     db.create_all()
@@ -267,8 +289,12 @@ def check_email(email):
 @app.route('/', methods=['GET', 'POST'])
 def log():
     if request.method == "POST":
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        if not email or not password:
+            flash("Email e password sono richiesti", category="alert alert-warning")
+            return redirect(url_for('log'))
 
         user = Users.query.filter_by(email=email).first()
         if user and user.verify_password(password):
@@ -300,7 +326,7 @@ def logout():
 @app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def utente(id_utente):
-    # Recupera l'utente con il nome utente passato come parametro
+    # Recupera l'utente con l'ID passato come parametro
     user = Users.query.filter_by(id_utente=id_utente).first()
 
     # Verifica se l'utente esiste
@@ -312,16 +338,18 @@ def utente(id_utente):
     current_user_id = current_user.id_utente
 
     # Recupera gli utenti seguiti dall'utente corrente
-    seguiti = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+    seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+
+    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
+    seguiti_ids.append(current_user_id)
 
     # Recupera i post degli utenti seguiti
-    posts = Post.query.filter(Post.utente.in_(seguiti)).order_by(Post.data_creazione.desc()).all()
+    posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
 
-    # Recupera gli utenti in una sola query
-    utenti = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti)).all()}
+    # Recupera gli utenti seguiti in una sola query
+    utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
 
-
-    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti)
+    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict)
 
 
 @app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
@@ -736,6 +764,7 @@ def notifiche():
             'type': 'like',
             'user': user,
             'post': post,
+            'timestamp': post_like.clicked_at,
             'time_ago': time_since(post_like.clicked_at)
         })
 
@@ -746,6 +775,7 @@ def notifiche():
             'user': user,
             'post': post,
             'comment': comment,
+            'timestamp': comment.created_at,
             'time_ago': time_since(comment.created_at)
         })
 
@@ -754,15 +784,14 @@ def notifiche():
         all_notifications.append({
             'type': 'follower',
             'user': user,
+            'timestamp': follower.seguito_at,
             'time_ago': time_since(follower.seguito_at)
         })
 
     # Ordinare le notifiche per data
-    all_notifications.sort(key=lambda x: x['time_ago'], reverse=True)
+    all_notifications.sort(key=lambda x: x['timestamp'], reverse=True)
 
-
-    return render_template('notifiche.html', 
-                           all_notifications=all_notifications)
+    return render_template('notifiche.html', all_notifications=all_notifications)
 
 
 def time_since(post_time):
@@ -829,77 +858,163 @@ def profilo_amico(id_amico):
 
     return render_template('profilo_amico.html', amico=amico, seguendo=amicizia is not None, posts=posts)
 
-#------------------------------- rimuovere amici ---------------------------------#
+#------------------------------- FOLLOWER, SEGUITI, E RIMUOVERE AMICI/SEGUITI ---------------------------------#
 
-    # funzione per rimuovere persone dalle persone che ti seguono
+from flask import abort
 
-@app.route('/rimuovi_follower/<string:follower>', methods=['DELETE'])
+
+@app.route('/lista_follower/<int:user_id>')
 @login_required
-def rimuovi_follower(follower):
-    current_user = request.json['current_user']
+def followers_list(user_id):
+    if user_id != current_user.id_utente:
+        abort(403)  # Forbidden access
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
+    followers = db.session.query(Users).join(Amici, Amici.io_utente == Users.id_utente).filter(Amici.user_amico == user_id).all()
+    return render_template('lista_follower.html', followers=followers)
 
-        # Verifica se il follower esiste e sta seguendo l'utente corrente
-        cursor.execute("""
-            SELECT * FROM amici WHERE user_amico = ? AND io_utente = ?
-        """, (current_user, follower))
-        follow = cursor.fetchone()
-        
-        if follow is None:
-            return jsonify({"message": "Follower non trovato"}), 404
 
-        # Rimuovi il follower
-        cursor.execute("""
-            DELETE FROM amici WHERE user_amico = ? AND io_utente = ?
-        """, (follower, current_user))
-        
-        conn.commit()
-        return jsonify({"message": "Follower rimosso con successo"}), 200
-
-    except sqlite3.Error as e:
-        return jsonify({"message": f"Errore nel database: {e}"}), 500
-
-    finally:
-        conn.close()
-        return render_template('lista_amici.html', user=current_user)
-
-    # funzione per smettere di seguire persone
-
-@app.route('/smetti_di_seguire/<string:followed>', methods=['DELETE'])
+@app.route('/lista_seguiti/<int:user_id>')
 @login_required
-def smetti_di_seguire(follower):
-    current_user = request.json['current_user']
+def following_list(user_id):
+    if user_id != current_user.id_utente:
+        abort(403)  # Forbidden access
 
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
+    following = db.session.query(Users).join(Amici, Amici.user_amico == Users.id_utente).filter(Amici.io_utente == user_id).all()
+    return render_template('lista_seguiti.html', following=following)
 
-        # Verifica se l'utente corrente sta seguendo la persona specificata
-        cursor.execute("""
-            SELECT * FROM amici WHERE user_amico = ? AND io_utente = ?
-        """, (follower, current_user))
-        follow = cursor.fetchone()
-        
-        if follow is None:
-            return jsonify({"message": "Non stai seguendo questa persona"}), 404
 
-        # Smetti di seguire la persona
-        cursor.execute("""
-            DELETE FROM amici WHERE user_amico = ? AND io_utente = ?
-        """, (follower, current_user))
-        
-        conn.commit()
-        return jsonify({"message": "Hai smesso di seguire questa persona"}), 200
+@app.route('/unfollow/<int:id_amico>', methods=['POST'])
+@login_required
+def unfollow(id_amico):
+    # Ottieni l'utente corrente
+    user_id = current_user.id_utente
 
-    except sqlite3.Error as e:
-        return jsonify({"message": f"Errore nel database: {e}"}), 500
+    # Trova la relazione di amicizia che deve essere rimossa
+    amicizia = Amici.query.filter_by(io_utente=user_id, user_amico=id_amico).first()
+    
+    if amicizia:
+        # Rimuovi la relazione di amicizia
+        db.session.delete(amicizia)
+        db.session.commit()
+        flash('Non segui più questa persona.', 'success')
+    else:
+        flash('Impossibile trovare l\'amicizia da rimuovere.', 'error')
 
-    finally:
-        conn.close()
-        return render_template('profilo_amico.html', user=follower)
+    return redirect(url_for('following_list', user_id=user_id))  # Redirige alla pagina dei seguiti
+
+@app.route('/remove_follower/<int:id_follower>', methods=['POST'])
+@login_required
+def remove_follower(id_follower):
+    # Ottieni l'utente corrente
+    user_id = current_user.id_utente
+
+    # Trova la relazione di amicizia che deve essere rimossa
+    follower_relation = Amici.query.filter_by(io_utente=id_follower, user_amico=user_id).first()
+    
+    if follower_relation:
+        # Rimuovi la relazione di amicizia
+        db.session.delete(follower_relation)
+        db.session.commit()
+        flash('Follower rimosso con successo.', 'success')
+    else:
+        flash('Impossibile trovare il follower da rimuovere.', 'error')
+
+    # Redirigi alla pagina dei follower per l'utente corrente
+    return redirect(url_for('followers_list', user_id=user_id))
+
+#------------------------------- chat tra amici ---------------------------------#
+
+@app.route('/chat')
+def chat():
+    user_id = current_user.id_utente
+
+    # Crea un alias per il modello Users
+    UserAlias = aliased(Users)
+
+    # Ottieni tutte le conversazioni in corso per l'utente
+    conversations = db.session.query(
+        Messaggi.destinatario_id,
+        UserAlias.username.label('username'),
+        UserAlias.url_photo.label('url_photo'),
+        Messaggi.testo,
+        Messaggi.creato_at
+    ).join(UserAlias, Messaggi.destinatario_id == UserAlias.id_utente) \
+     .filter(Messaggi.mittente_id == user_id) \
+     .order_by(Messaggi.creato_at.desc()) \
+     .all()
+
+    # Organizza le conversazioni in un dizionario
+    # Usa un dizionario per raccogliere l'ultimo messaggio per ogni destinatario
+    chat_data = {}
+    for convo in conversations:
+        if convo.destinatario_id not in chat_data or convo.creato_at > chat_data[convo.destinatario_id]['ultimo_messaggio_data']:
+            chat_data[convo.destinatario_id] = {
+                'utente': {
+                    'id': convo.destinatario_id,
+                    'username': convo.username,
+                    'url_photo': convo.url_photo
+                },
+                'ultimo_messaggio': convo.testo,
+                'ultimo_messaggio_data': convo.creato_at
+            }
+
+    # Converti il dizionario in una lista
+    chat_data = list(chat_data.values())
+
+    return render_template('chat.html', chat_attive=chat_data)
+
+@app.route('/chat/start/<int:other_user_id>')
+@login_required
+def start_chat(other_user_id):
+    user_id = current_user.id_utente
+
+    # Controlla se esiste già una conversazione tra i due utenti
+    conversation = Messaggi.query.filter(
+        ((Messaggi.mittente_id == user_id) & (Messaggi.destinatario_id == other_user_id)) |
+        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == user_id))
+    ).first()
+
+    if not conversation:
+        # Crea una conversazione vuota se non esiste
+        # Nota: Modifica questo codice se hai una logica specifica per iniziare una conversazione
+        pass
+    
+    # Reindirizza alla pagina della chat con l'utente selezionato
+    return redirect(url_for('chat_with_user', user_id=other_user_id))
+
+@app.route('/chat/with/<int:user_id>')
+@login_required
+def chat_with_user(user_id):
+    current_user_id = current_user.id_utente
+    
+    # Recupera tutti i messaggi tra l'utente corrente e l'utente selezionato
+    messaggi = Messaggi.query.filter(
+        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == user_id)) |
+        ((Messaggi.mittente_id == user_id) & (Messaggi.destinatario_id == current_user_id))
+    ).order_by(Messaggi.creato_at.asc()).all()
+
+    return render_template('chat_amico.html', messaggi=messaggi, user_id=user_id)
+
+@app.route('/send_message', methods=['POST'])
+@login_required
+def send_message():
+    message_text = request.form['message']
+    recipient_id = int(request.form['recipient_id'])
+    sender_id = current_user.id_utente
+
+    if message_text:
+        messaggio = Messaggi(
+            testo=message_text,
+            mittente_id=sender_id,
+            destinatario_id=recipient_id
+        )
+        db.session.add(messaggio)
+        db.session.commit()
+
+    return jsonify({'status': 'success'})
+
+
+
 
 
 # Inizializzazione dell'applicazione

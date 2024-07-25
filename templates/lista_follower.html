@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Followers{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Followers</h2>
+    <ul class="list-unstyled">
+        {% if followers %}
+            {% for follower in followers %}
+            <li class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center">
+                    <img src="{{ url_for('serve_file', filename=follower.immagine) if follower.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                    <a href="{{ url_for('profilo_amico', id_amico=follower.id_utente) }}" class="ml-2">{{ follower.username }}</a>
+                </div>
+                <form method="post" action="{{ url_for('remove_follower', id_follower=follower.id_utente) }}" class="ml-2">
+                    <button type="submit" class="btn btn-danger btn-sm">Rimuovi</button>
+                </form>
+            </li>
+            {% endfor %}
+        {% else %}
+            <p>Nessun follower trovato.</p>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}
