@@ -34,7 +34,7 @@ CREATE TABLE amici (
     id_amicizia SERIAL PRIMARY KEY,
     io_utente INTEGER REFERENCES users(id_utente),
     user_amico INTEGER REFERENCES users(id_utente),
-    stato stato,
+    stato stato
 );
 
 

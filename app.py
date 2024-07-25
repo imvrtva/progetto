@@ -58,7 +58,7 @@ class Users(UserMixin, db.Model):
     immagine = Column(String(100), nullable=True)
     nome = Column(String(50), unique=False, nullable=False)
     cognome = Column(String(50), unique=False, nullable=False)
-    password = Column(String(150), nullable=False)  # Changed to password_hash
+    password_ = Column(String(150), nullable=False)  # Changed to password_hash
     email = Column(String(150), unique=True, nullable=False)
     sesso = Column(SQLAlchemyEnum(Sesso))
     eta = Column(Integer, unique=False, nullable=False)
@@ -274,7 +274,7 @@ def log():
         password = request.form['password']
 
         user = Users.query.filter_by(email=email).first()
-        if user and user.verify_password(password_):
+        if user and user.verify_password(password):
             login_user(user)
             session['id_utente'] = user.id_utente
             session['role'] = user.ruolo.value
@@ -333,11 +333,12 @@ def inserzionista(username):
     user = Users.query.filter_by(username=username).first_or_404()
     return render_template('home_inserzionista.html', user=user)
 
-
 @app.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
-    if request.method == "POST":
-        details = request.form
+    if request.method== "GET":
+        return render_template('registrazione.html')
+    else:
+        details =request.form
         username = details['username']
         nome = details['nome']
         cognome = details['cognome']
@@ -348,45 +349,31 @@ def addprofile():
         eta = details['eta']
         ruolo = details['ruolo']
         errore = False
-
-        if check_email(email):
-            flash("Email non valida", category="alert alert-warning")
-            return render_template('registrazione.html')
-
-        if check_password(password):
-            flash("Password non valida", category="alert alert-warning")
-            return render_template('registrazione.html')
-
         
-        existing_user = Users.query.filter_by(username=username).first()
-        if existing_user:
-            flash("ERROR: già registrato", "warning")
-            return render_template('registrazione.html')
-        
-        try:
-            user = Users(
-                username=username,
-                nome=nome,
-                cognome=cognome,
-                password=password,  # Assuming you have a mechanism to hash passwords
-                email=email,
-                sesso=sesso,
-                eta=eta,
-                ruolo=ruolo
-            )
-            db.session.add(user)
-            db.session.commit()
-            flash("Registrazione riuscita", category="alert alert-success")
-            # Store the username in the session
-            session['new_user'] = username
-            # Redirect to the interests selection page
-            return redirect(url_for('interessi'))
-        except IntegrityError:
-            db.session.rollback()
-            flash("ERROR: Utente già registrato", category="alert alert-warning")
-            return render_template('registrazione.html')
+        if(not check_email(email)):
+            flash("Formato email sbagliato", "alert alert-warning")
+            errore= True
+        if(not check_password(password)):
+            flash("Formato password sbagliato", "alert alert-warning")
+            errore =True
+        if not cpassword==password:
+            flash("Le Passoword sono diverse", "alert alert-warning")
+            errore = True
+        if errore:
+            render_template('registrazione.html')
 
-    return render_template('registrazione.html')
+    #    try:
+            
+		#	db.engine.execute("INSERT INTO users VALUES(%s,%s,%s,%s,%s,%s,%s,%s)", (username, nome, cognome,password,email,sesso,eta,ruolo))
+		#	flash("Registrazione riuscita", category="alert alert-success")
+		#except:
+		#	flash("ERROR: Utente gia reggistrato ", "alert alert-warning")
+		#	return render_template('registrazione.html')
+
+    return redirect (url_for('log'))
+
+
+
 
 @app.route('/interessi', methods=['GET', 'POST'])
 def interessi():
