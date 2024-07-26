@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with {{ user.username }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .chat-box {
+            height: 400px;
+            overflow-y: auto; /* Changed from scroll to auto */
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+        }
+        .message.sent {
+            align-items: flex-end;
+        }
+        .message.received {
+            align-items: flex-start;
+        }
+        .message strong {
+            display: block;
+            margin-bottom: 2px;
+        }
+        .message-text {
+            margin: 0;
+            padding: 10px;
+            border-radius: 4px;
+            word-wrap: break-word;
+        }
+        .message.sent .message-text {
+            background-color: #007bff;
+            color: #fff;
+            margin-left: auto;
+        }
+        .message.received .message-text {
+            background-color: #f1f1f1;
+            color: #000;
+            margin-right: auto;
+        }
+        .message-time {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 2px;
+        }
+        form {
+            display: flex;
+            margin-top: 10px;
+        }
+        form input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        form input[type="submit"] {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        form input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chat with {{ user.username }}</h1>
+        <div class="chat-box" id="chat-box">
+            {% for message in messages %}
+                <div class="message {{ 'sent' if message.mittente_id == current_user.id else 'received' }}">
+                    <strong>{{ users.get(message.mittente_id).username if users.get(message.mittente_id) else 'Unknown User' }}:</strong>
+                    <div class="message-text">{{ message.testo }}</div>
+                    <div class="message-time">{{ message.creato_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+            {% endfor %}
+        </div>
+        <form action="{{ url_for('chat', other_user_id=user.id_utente) }}" method="post">
+            <input type="text" name="message" placeholder="Type your message here..." required>
+            <input type="submit" value="Send">
+        </form>
+    </div>
+    <script>
+        // Function to scroll to the bottom of the chat-box
+        function scrollToBottom() {
+            const chatBox = document.getElementById('chat-box');
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Call the function on page load to ensure the view starts at the bottom
+        window.onload = scrollToBottom;
+
+        // Call the function whenever a new message is added
+        // You might need to trigger this on the event of receiving a new message
+        // For example, if using a real-time system, you might call this in the message update handler
+    </script>
+</body>
+</html>

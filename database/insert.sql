@@ -10,7 +10,18 @@ VALUES
 ('Sport'),
 ('Musica'),
 ('Tecnologia'),
-('Cucina');
+('Cucina'),
+('Viaggi'),
+('Libri'),
+('Cinema'),
+('Arte'),
+('Giardinaggio'),
+('Fotografia'),
+('Fai da te'),
+('Moda'),
+('Storia'),
+('Giochi da tavolo'),
+('Politica');
 
 INSERT INTO user_interessi (utente_id, id_interessi)
 VALUES 

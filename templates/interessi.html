@@ -9,27 +9,51 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f0f0f0;
+            position: relative;
         }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('../contenuti/sfondo.jpg') no-repeat center center fixed;
+            background-size: cover;
+            filter: blur(5px);
+            z-index: -1;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
         }
+
         .header {
             text-align: center;
             margin-bottom: 20px;
         }
+
         .header h1 {
             margin: 0;
             font-size: 2.5em;
             color: #333;
+            font-family: 'Arial', sans-serif; 
         }
+
         .grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 20px;
+            padding: 20px;
         }
+
         .grid-item {
             flex: 1 1 calc(25% - 30px);
             box-sizing: border-box;
@@ -38,16 +62,25 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             position: relative;
             transition: transform 0.3s;
-            cursor: pointer; /* Make items look clickable */
+            cursor: pointer;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
         }
+
         .grid-item:hover {
             transform: scale(1.05);
         }
+
         .grid-item img {
             width: 100%;
-            height: auto;
+            height: 100%;
+            object-fit: cover;
             display: block;
         }
+
         .grid-item .overlay {
             position: absolute;
             bottom: 0;
@@ -57,15 +90,19 @@
             color: #fff;
             text-align: center;
             padding: 10px;
-            display: none;
-        }
-        .grid-item.selected .overlay {
             display: block;
+            z-index: 1;
         }
+
+        .grid-item.selected .overlay {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
         .form-container {
             margin-top: 20px;
             text-align: center;
         }
+
         .form-container form {
             display: inline-block;
             background: #fff;
@@ -73,6 +110,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
+
         .form-container input[type="submit"] {
             background-color: #007bff;
             color: #fff;
@@ -82,60 +120,112 @@
             cursor: pointer;
             font-size: 1em;
         }
+
         .form-container input[type="submit"]:hover {
             background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Scopri i Tuoi Interessi</h1>
-        </div>
 
-        <!-- Messaggi di flash -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="alert alert-dismissible fade show" role="alert">
-                    {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <!-- Griglia degli interessi -->
-        <form action="{{ url_for('interessi') }}" method="post">
-            <div class="grid">
-                <div class="grid-item" onclick="toggleSelection('sport')">
-                    <img src="../contenuti/sport.jpg" alt="Sport">
-                    <div class="overlay">Sport</div>
-                    <input type="checkbox" name="interessi" value="Sport" id="sport" style="display: none;">
-                </div>
-                <div class="grid-item" onclick="toggleSelection('natura')">
-                    <img src="../contenuti/natura.jpg" alt="Natura">
-                    <div class="overlay">Natura</div>
-                    <input type="checkbox" name="interessi" value="Natura" id="natura" style="display: none;">
-                </div>
-                <div class="grid-item" onclick="toggleSelection('lettura')">
-                    <img src="../contenuti/lettura.jpg" alt="Lettura">
-                    <div class="overlay">Lettura</div>
-                    <input type="checkbox" name="interessi" value="Lettura" id="lettura" style="display: none;">
-                </div>
-                <div class="grid-item" onclick="toggleSelection('animali')">
-                    <img src="../contenuti/animali.jpg" alt="Animali">
-                    <div class="overlay">Animali</div>
-                    <input type="checkbox" name="interessi" value="Animali" id="animali" style="display: none;">
-                </div>
-            </div>
-            <div class="form-container">
-                <input type="submit" value="Iscrivimi">
-            </div>
-        </form>
+    <div class="header">
+        <h1>Scopri i Tuoi Interessi</h1>
     </div>
+
+    <!-- Messaggi di flash -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="alert alert-dismissible fade show" role="alert">
+                {% for category, message in messages %}
+                    <div class="alert {{ category }}">{{ message }}</div>
+                {% endfor %}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Griglia degli interessi -->
+    <form action="{{ url_for('interessi') }}" method="post">
+        <div class="grid">
+            <div class="grid-item" onclick="toggleSelection('sport')">
+                <img src="/contenuti/sport.jpg" alt="Sport">
+                <div class="overlay">Sport</div>
+                <input type="checkbox" name="interessi" value="Sport" id="sport" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('musica')">
+                <img src="/contenuti/musica.jpg" alt="Musica">
+                <div class="overlay">Musica</div>
+                <input type="checkbox" name="interessi" value="Musica" id="musica" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('tecnologia')">
+                <img src="/contenuti/tecnologia.jpg" alt="Tecnologia">
+                <div class="overlay">Tecnologia</div>
+                <input type="checkbox" name="interessi" value="Tecnologia" id="tecnologia" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('cucina')">
+                <img src="/contenuti/cucina.jpg" alt="Cucina">
+                <div class="overlay">Cucina</div>
+                <input type="checkbox" name="interessi" value="Cucina" id="cucina" style="display: none;">
+            </div>
+            <!-- Nuovi box aggiunti -->
+            <div class="grid-item" onclick="toggleSelection('viaggi')">
+                <img src="/contenuti/viaggi.jpg" alt="Viaggi">
+                <div class="overlay">Viaggi</div>
+                <input type="checkbox" name="interessi" value="Viaggi" id="viaggi" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('libri')">
+                <img src="/contenuti/libri.jpg" alt="Libri">
+                <div class="overlay">Libri</div>
+                <input type="checkbox" name="interessi" value="Libri" id="libri" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('cinema')">
+                <img src="/contenuti/cinema.jpg" alt="Cinema">
+                <div class="overlay">Cinema</div>
+                <input type="checkbox" name="interessi" value="Cinema" id="cinema" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('arte')">
+                <img src="/contenuti/arte.jpg" alt="Arte">
+                <div class="overlay">Arte</div>
+                <input type="checkbox" name="interessi" value="Arte" id="arte" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('giardinaggio')">
+                <img src="/contenuti/giardinaggio.jpg" alt="Giardinaggio">
+                <div class="overlay">Giardinaggio</div>
+                <input type="checkbox" name="interessi" value="Giardinaggio" id="giardinaggio" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('fotografia')">
+                <img src="/contenuti/fotografia.jpg" alt="Fotografia">
+                <div class="overlay">Fotografia</div>
+                <input type="checkbox" name="interessi" value="Fotografia" id="fotografia" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('fai-da-te')">
+                <img src="/contenuti/faidate.jpg" alt="Fai da te">
+                <div class="overlay">Fai da te</div>
+                <input type="checkbox" name="interessi" value="Fai da te" id="fai-da-te" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('moda')">
+                <img src="/contenuti/moda.jpg" alt="Moda">
+                <div class="overlay">Moda</div>
+                <input type="checkbox" name="interessi" value="Moda" id="moda" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('storia')">
+                <img src="/contenuti/storia.jpg" alt="Storia">
+                <div class="overlay">Storia</div>
+                <input type="checkbox" name="interessi" value="Storia" id="storia" style="display: none;">
+            </div>
+            <div class="grid-item" onclick="toggleSelection('giochi-da-tavolo')">
+                <img src="/contenuti/giochidatavolo.jpg" alt="Giochi da tavolo">
+                <div class="overlay">Giochi da tavolo</div>
+                <input type="checkbox" name="interessi" value="Giochi da tavolo" id="giochi-da-tavolo" style="display: none;">
+            </div>
+            
+        </div>
+        <div class="form-container">
+            <input type="submit" value="Iscrivimi">
+        </div>
+    </form>
 
     <script>
         function toggleSelection(id) {

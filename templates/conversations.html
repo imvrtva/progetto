@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .conversation-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .conversation-item {
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        .conversation-item:hover {
+            background-color: #e0e0e0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .conversation-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        .message-preview {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #666;
+        }
+        .message-preview .message-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 80%;
+        }
+        .message-preview .message-time {
+            font-size: 0.9em;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your Conversations</h1>
+        <ul class="conversation-list">
+            {% for other_user_id, messages in conversations.items() %}
+                <li class="conversation-item">
+                    <a href="{{ url_for('chat', other_user_id=other_user_id) }}">
+                        <div class="conversation-header">
+                            {% set user = users.get(other_user_id) %}
+                            Conversation with {{ user.username if user else 'Unknown User' }}
+                        </div>
+                        <div class="messages">
+                            {% if messages %}
+                                {% set last_message = messages[0] %}
+                                <div class="message-preview">
+                                    <div class="message-text">
+                                        {% set sender = users.get(last_message.mittente_id) %}
+                                        <strong>{{ sender.username if sender else 'Unknown User' }}:</strong> 
+                                        {{ last_message.testo | truncate(100, True) }}
+                                    </div>
+                                    <div class="message-time">
+                                        {{ last_message.creato_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="message-preview">
+                                    No messages yet.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </a>
+                </li>
+            {% else %}
+                <li class="conversation-item">No conversations found.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

@@ -145,10 +145,7 @@
                 <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo post?');">Elimina</button>
             </form>
         {% endif %}
-        <!-- Pulsante di Condivisione del Post -->
-        <a href="{{ url_for('condividi', post_id=post.id) }}">
-            <button class="share-button">Condividi</button>
-        </a>
+        
         <!-- Data di Creazione -->
         <div class="card-footer text-muted text-center border-0 bg-white">
             pubblicato il: {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}

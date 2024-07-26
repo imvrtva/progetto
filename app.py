@@ -238,7 +238,7 @@ class AnnunciLikes(db.Model, UserMixin):
         self.annuncio_id = annuncio_id
         self.user_id = user_id
 
-class Messaggi(db.Model, UserMixin):
+class Messaggi(db.Model):
     __tablename__ = 'messaggi'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -246,15 +246,21 @@ class Messaggi(db.Model, UserMixin):
     mittente_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     destinatario_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     creato_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
+    postinviato = Column(Integer, ForeignKey('posts.id'), nullable=True)
 
-    # Relazioni per accedere ai dettagli del mittente e del destinatario
+    # Relationships
     mittente = relationship('Users', foreign_keys=[mittente_id], backref='messaggi_inviati')
     destinatario = relationship('Users', foreign_keys=[destinatario_id], backref='messaggi_ricevuti')
+    post = relationship('Post', 
+                        backref='messaggi_foto', 
+                        foreign_keys=[postinviato],
+                        primaryjoin='Messaggi.postinviato == Post.id')
 
-    def __init__(self, testo, mittente_id, destinatario_id):
+    def __init__(self, testo, mittente_id, destinatario_id, postinviato):
         self.testo = testo
         self.mittente_id = mittente_id
         self.destinatario_id = destinatario_id
+        self.postinviato = postinviato
 
     def __repr__(self):
         return f"<Messaggio(id={self.id}, mittente_id={self.mittente_id}, destinatario_id={self.destinatario_id}, creato_at={self.creato_at})>"
@@ -372,7 +378,10 @@ def addprofile():
         sesso = details['sesso']
         eta = details['eta']
         ruolo = details['ruolo']
-        errore = False
+
+        if password != cpassword:
+            flash("Le password non corrispondono", category="alert alert-warning")
+            return render_template('registrazione.html')
 
         if check_email(email):
             flash("Email non valida", category="alert alert-warning")
@@ -924,97 +933,79 @@ def remove_follower(id_follower):
 
 #------------------------------- chat tra amici ---------------------------------#
 
-@app.route('/chat')
-def chat():
-    user_id = current_user.id_utente
+@app.route('/conversations')
+def conversations():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
 
-    # Crea un alias per il modello Users
-    UserAlias = aliased(Users)
-
-    # Ottieni tutte le conversazioni in corso per l'utente
-    conversations = db.session.query(
-        Messaggi.destinatario_id,
-        UserAlias.username.label('username'),
-        UserAlias.url_photo.label('url_photo'),
-        Messaggi.testo,
-        Messaggi.creato_at
-    ).join(UserAlias, Messaggi.destinatario_id == UserAlias.id_utente) \
-     .filter(Messaggi.mittente_id == user_id) \
-     .order_by(Messaggi.creato_at.desc()) \
-     .all()
-
-    # Organizza le conversazioni in un dizionario
-    # Usa un dizionario per raccogliere l'ultimo messaggio per ogni destinatario
-    chat_data = {}
-    for convo in conversations:
-        if convo.destinatario_id not in chat_data or convo.creato_at > chat_data[convo.destinatario_id]['ultimo_messaggio_data']:
-            chat_data[convo.destinatario_id] = {
-                'utente': {
-                    'id': convo.destinatario_id,
-                    'username': convo.username,
-                    'url_photo': convo.url_photo
-                },
-                'ultimo_messaggio': convo.testo,
-                'ultimo_messaggio_data': convo.creato_at
-            }
-
-    # Converti il dizionario in una lista
-    chat_data = list(chat_data.values())
-
-    return render_template('chat.html', chat_attive=chat_data)
-
-@app.route('/chat/start/<int:other_user_id>')
-@login_required
-def start_chat(other_user_id):
-    user_id = current_user.id_utente
-
-    # Controlla se esiste già una conversazione tra i due utenti
-    conversation = Messaggi.query.filter(
-        ((Messaggi.mittente_id == user_id) & (Messaggi.destinatario_id == other_user_id)) |
-        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == user_id))
-    ).first()
-
-    if not conversation:
-        # Crea una conversazione vuota se non esiste
-        # Nota: Modifica questo codice se hai una logica specifica per iniziare una conversazione
-        pass
-    
-    # Reindirizza alla pagina della chat con l'utente selezionato
-    return redirect(url_for('chat_with_user', user_id=other_user_id))
-
-@app.route('/chat/with/<int:user_id>')
-@login_required
-def chat_with_user(user_id):
     current_user_id = current_user.id_utente
-    
-    # Recupera tutti i messaggi tra l'utente corrente e l'utente selezionato
-    messaggi = Messaggi.query.filter(
-        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == user_id)) |
-        ((Messaggi.mittente_id == user_id) & (Messaggi.destinatario_id == current_user_id))
+
+    # Fetch conversations involving the current user
+    messages = db.session.query(Messaggi).filter(
+        (Messaggi.mittente_id == current_user_id) | (Messaggi.destinatario_id == current_user_id)
+    ).order_by(Messaggi.creato_at.desc()).all()
+
+    # Organize messages by conversation
+    conversations = {}
+    for msg in messages:
+        other_user_id = msg.destinatario_id if msg.mittente_id == current_user_id else msg.mittente_id
+        if other_user_id not in conversations:
+            conversations[other_user_id] = []
+        conversations[other_user_id].append(msg)
+
+    # Fetch user details
+    user_ids = set(user_id for user_id in conversations.keys()) | {current_user_id}
+    users = {user.id_utente: user for user in db.session.query(Users).filter(Users.id_utente.in_(user_ids)).all()}
+
+    return render_template('conversations.html', conversations=conversations, users=users)
+
+@app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
+def chat(other_user_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+
+    current_user_id = current_user.id_utente
+
+    # Fetch all messages between the current user and the specified user
+    messages = db.session.query(Messaggi).filter(
+        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == other_user_id)) |
+        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == current_user_id))
     ).order_by(Messaggi.creato_at.asc()).all()
 
-    return render_template('chat_amico.html', messaggi=messaggi, user_id=user_id)
+    if request.method == 'POST':
+        # Handle new message
+        message_text = request.form.get('message')
+        if message_text:
+            new_message = Messaggi(
+                testo=message_text,
+                mittente_id=current_user_id,
+                destinatario_id=other_user_id,
+                postinviato=None  # Assuming this is optional or not used in this context
+            )
+            db.session.add(new_message)
+            db.session.commit()
+            return redirect(url_for('chat', other_user_id=other_user_id))
 
-@app.route('/send_message', methods=['POST'])
-@login_required
-def send_message():
-    message_text = request.form['message']
-    recipient_id = int(request.form['recipient_id'])
-    sender_id = current_user.id_utente
+    # Fetch user details for the chat partner
+    user = db.session.query(Users).get(other_user_id)
+    if not user:
+        abort(404)  # User not found, handle accordingly
 
-    if message_text:
-        messaggio = Messaggi(
-            testo=message_text,
-            mittente_id=sender_id,
-            destinatario_id=recipient_id
-        )
-        db.session.add(messaggio)
-        db.session.commit()
+    # Fetch all users to pass to the template for username resolution
+    all_users = db.session.query(Users).all()
+    users = {user.id_utente: user for user in all_users}
 
-    return jsonify({'status': 'success'})
+    return render_template('chat.html', messages=messages, user=user, users=users)
 
-
-
+@app.route('/send_message/<int:other_user_id>', methods=['POST'])
+def send_message(other_user_id):
+    # Your logic to handle sending the message
+    message_text = request.form.get('message')
+    # Create and save the new message to the database
+    new_message = Messaggi(testo=message_text, mittente_id=current_user.id_utente, destinatario_id=other_user_id, postinviato=None)
+    db.session.add(new_message)
+    db.session.commit()
+    return redirect(url_for('chat', user_id=other_user_id))
 
 
 # Inizializzazione dell'applicazione
