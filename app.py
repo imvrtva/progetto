@@ -1,4 +1,4 @@
-from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify, session, send_from_directory
+from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify, session, send_from_directory, abort
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Text, BLOB, ForeignKey, TIMESTAMP, Date, func
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
@@ -290,7 +290,11 @@ def check_email(email):
     regex_email = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Z|a-z]{2,}\b'
     return not re.fullmatch(regex_email, email)
 
-#------------------------ rotte sito internet -------------------------#
+        #------------------------ rotte sito internet -------------------------#
+
+#------------------------ log in e log out, registrazione -------------------------#
+
+    ## login
 
 @app.route('/', methods=['GET', 'POST'])
 def log():
@@ -318,6 +322,7 @@ def log():
 
     return render_template('login.html')
 
+    ## logout
 
 @app.route('/logout')
 @login_required
@@ -328,42 +333,7 @@ def logout():
     flash("Logout effettuato con successo", category='alert alert-success')
     return redirect(url_for('log'))
 
-
-@app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
-@login_required
-def utente(id_utente):
-    # Recupera l'utente con l'ID passato come parametro
-    user = Users.query.filter_by(id_utente=id_utente).first()
-
-    # Verifica se l'utente esiste
-    if not user:
-        flash("Utente non trovato", category="alert alert-danger")
-        return redirect(url_for('log'))
-
-    # Recupera l'ID dell'utente corrente
-    current_user_id = current_user.id_utente
-
-    # Recupera gli utenti seguiti dall'utente corrente
-    seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
-
-    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
-    seguiti_ids.append(current_user_id)
-
-    # Recupera i post degli utenti seguiti
-    posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
-
-    # Recupera gli utenti seguiti in una sola query
-    utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
-
-    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict)
-
-
-@app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
-@login_required
-def inserzionista(username):
-    user = Users.query.filter_by(username=username).first_or_404()
-    return render_template('home_inserzionista.html', user=user)
-
+    ## registrazione
 
 @app.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
@@ -416,7 +386,7 @@ def addprofile():
 
     return render_template('registrazione.html')
 
-
+    ## aggiunta interessi
 
 @app.route('/interessi', methods=['GET', 'POST'])
 def interessi():
@@ -459,7 +429,50 @@ def interessi():
         # Redirect to the login page after adding interests
         return redirect(url_for('log'))
 
+#------------------------------------------- home page sito ---------------------------------#
 
+    ## home page utente
+
+@app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
+@login_required
+def utente(id_utente):
+    # Recupera l'utente con l'ID passato come parametro
+    user = Users.query.filter_by(id_utente=id_utente).first()
+
+    # Verifica se l'utente esiste
+    if not user:
+        flash("Utente non trovato", category="alert alert-danger")
+        return redirect(url_for('log'))
+
+    # Recupera l'ID dell'utente corrente
+    current_user_id = current_user.id_utente
+
+    # Recupera gli utenti seguiti dall'utente corrente
+    seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+
+    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
+    seguiti_ids.append(current_user_id)
+
+    # Recupera i post degli utenti seguiti
+    posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
+
+    # Recupera gli utenti seguiti in una sola query
+    utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
+
+    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict)
+
+    
+    ## home page inserzionista
+
+@app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
+@login_required
+def inserzionista(username):
+    user = Users.query.filter_by(username=username).first_or_404()
+    return render_template('home_inserzionista.html', user=user)
+
+
+#--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
+    ## pagina profilo utente
 
 @app.route('/profilo', methods=['GET', 'POST'])
 @login_required
@@ -529,17 +542,17 @@ def serve_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
+## pagina profilo inserzionista
+
 #------------------------------ pubblicazione post -------------------------------#
 
+    ## scelta di cosa pubblicare
 
-#------------------------------ pubblicazione post -------------------------------#
 @app.route('/scegli_post', methods=['GET', 'POST'])
 def scegli_post():
     return render_template('scelta_post.html')
 
-
-
-## pubblicazione testo
+    ## pubblicazione testo
  
 @app.route('/pubblica_testo', methods=['GET', 'POST'])
 @login_required
@@ -551,7 +564,8 @@ def pubblica_testo():
         db.session.commit()
         return redirect(url_for('utente', id_utente=current_user.id_utente))
     return render_template('pubblicazione_testo.html')
-## pubblicazione video
+
+    ## pubblicazione video
 
 @app.route('/pubblica_video', methods=['GET', 'POST'])
 @login_required
@@ -566,7 +580,8 @@ def pubblica_video():
         db.session.commit()
         return redirect(url_for('utente', id_utente=current_user.id_utente))
     return render_template('pubblicazione_video.html')
-## pubblicazione immagine
+
+    ## pubblicazione immagine
 
 @app.route('/pubblica_immagini', methods=['GET', 'POST'])
 @login_required
@@ -582,23 +597,10 @@ def pubblica_immagini():
         return redirect(url_for('utente', id_utente=current_user.id_utente))
     return render_template('pubblicazione_immagine.html')
 
-@app.route('/elimina_post/<int:post_id>', methods=['POST'])
-@login_required
-def elimina_post(post_id):
-    # Recupera il post con l'ID specificato
-    post = Post.query.get_or_404(post_id)
-    # Verifica se l'utente corrente Ã¨ l'autore del post
-    if post.utente != current_user.id_utente:
-        flash("Non sei autorizzato a eliminare questo post.", category="alert alert-danger")
-        return redirect(url_for('utente', id_utente=current_user.id_utente))
-    # Elimina i like associati al post
-    PostLikes.query.filter_by(post_id=post_id).delete()
-    # Elimina il post
-    db.session.delete(post)
-    db.session.commit()
-    flash("Post eliminato con successo.", category="alert alert-success")
-    return redirect(url_for('utente', id_utente=current_user.id_utente))
-#------------------------------ vedere i post -------------------------------#
+
+#------------------------------ vedere i post ed eliminarli -------------------------------#
+
+    ## vedere post
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 @login_required
@@ -626,7 +628,29 @@ def post_details(post_id):
             return redirect(url_for('post_details', post_id=post_id))
 
     return render_template('post.html', post=post, post_user=post_user, comments=comments, comment_users=comment_users, liked=liked)
-#------------------------------ inserimento commenti -------------------------------#
+
+    ## eliminare post
+
+@app.route('/elimina_post/<int:post_id>', methods=['POST'])
+@login_required
+def elimina_post(post_id):
+    # Recupera il post con l'ID specificato
+    post = Post.query.get_or_404(post_id)
+    # Verifica se l'utente corrente Ã¨ l'autore del post
+    if post.utente != current_user.id_utente:
+        flash("Non sei autorizzato a eliminare questo post.", category="alert alert-danger")
+        return redirect(url_for('utente', id_utente=current_user.id_utente))
+    # Elimina i like associati al post
+    PostLikes.query.filter_by(post_id=post_id).delete()
+    # Elimina il post
+    db.session.delete(post)
+    db.session.commit()
+    flash("Post eliminato con successo.", category="alert alert-success")
+    return redirect(url_for('utente', id_utente=current_user.id_utente))
+
+#------------------------------ inserire ed eliminare commenti -------------------------------#
+
+    ## inserimento commenti
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
@@ -638,7 +662,7 @@ def add_comment(post_id):
     db.session.commit()
     return redirect(url_for('post_details', post_id=post_id))
 
-    
+    ## eliminare commenti
 
 @app.route('/delete_comment/<int:comment_id>', methods=['POST'])
 @login_required
@@ -658,8 +682,7 @@ def delete_comment(comment_id):
     return redirect(url_for('post_details', post_id=comment.post_id))
 
 
-
-#------------------------------ inserimento mi piace -------------------------------#
+#------------------------------ mettere e togliere mi piace -------------------------------#
 
 @app.route('/toggle_like/<int:post_id>', methods=['POST'])
 @login_required
@@ -679,63 +702,7 @@ def toggle_like(post_id):
 
     return redirect(url_for('post_details', post_id=post.id))
 
-
-@app.route('/mi_piace/<int:post_id>', methods=['POST'])
-@login_required
-def mi_piace(post_id):
-    post = Post.query.get(post_id)
-
-    if not post:
-        flash('Il post non esiste', 'alert alert-warning')
-        return redirect(url_for('app.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
-
-    if current_user.username == post.autore:
-        flash('Non puoi mettere mi piace al tuo stesso post', 'alert alert-warning')
-        return redirect(url_for('app.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
-
-    nuovo_like = PostLikes(post_id=post_id, username=current_user.username)
-
-    try:
-        db.session.add(nuovo_like)
-        db.session.commit()
-        flash('Mi piace aggiunto con successo', 'alert alert-success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Errore durante l\'aggiunta del mi piace: {str(e)}', 'alert alert-danger')
-    
-    return redirect(url_for('app.utente_home'))  # Modifica il nome della funzione a seconda della tua implementazione
-
-@app.route('/<int:post_id>', methods=['DELETE'])
-@login_required
-def elimina_mi_piace(post_id):
-    current_user = request.json['current_user']
-
-    try:
-        conn = sqlite3.connect('database.db')
-        cursor = conn.cursor()
-
-        # Verifica se il commento esiste e appartiene all'utente corrente
-        cursor.execute("SELECT * FROM post_likes WHERE posts_id = ? AND username = ?", (post_id, current_user))
-        commento = cursor.fetchone()
-        
-        if commento is None:
-            return jsonify({"message": "Commento non trovato o non autorizzato"}), 404
-        
-        # Elimina il commento
-        cursor.execute("DELETE FROM post_likes WHERE post_id = ?", (post_id))
-        
-        conn.commit()
-        return jsonify({"message": "Like eliminato con successo"}), 200
-
-    except sqlite3.Error as e:
-        return jsonify({"message": f"Errore nel database: {e}"}), 500
-
-    finally:
-        conn.close()
-        return render_template('home_utente.html', user=current_user)
-
 #------------------------------ Notifiche -------------------------------#
-
 
 @app.route('/notifiche', methods=['GET'])
 @login_required
@@ -802,6 +769,7 @@ def notifiche():
 
     return render_template('notifiche.html', all_notifications=all_notifications)
 
+    ## funzione per l'orario di arrivo delle notifiche
 
 def time_since(post_time):
     # Definire il fuso orario italiano
@@ -823,9 +791,9 @@ def time_since(post_time):
     else:
         return "ora"
 
+#------------------------------ ricerca utente e visualizzazione profilo -------------------------------#
 
-
-#------------------------------ ricerca utente -------------------------------#
+    ## ricerca utente
 
 @app.route('/search_suggestions')
 @login_required
@@ -839,6 +807,8 @@ def search_suggestions():
     return jsonify({
         'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
     })
+
+    ## visualizzazione profilo
 
 @app.route('/profilo_amico/<int:id_amico>', methods=['GET', 'POST'])
 @login_required
@@ -869,8 +839,7 @@ def profilo_amico(id_amico):
 
 #------------------------------- FOLLOWER, SEGUITI, E RIMUOVERE AMICI/SEGUITI ---------------------------------#
 
-from flask import abort
-
+    ## vedere elenco follower
 
 @app.route('/lista_follower/<int:user_id>')
 @login_required
@@ -881,6 +850,7 @@ def followers_list(user_id):
     followers = db.session.query(Users).join(Amici, Amici.io_utente == Users.id_utente).filter(Amici.user_amico == user_id).all()
     return render_template('lista_follower.html', followers=followers)
 
+    ## vedere elenco seguiti
 
 @app.route('/lista_seguiti/<int:user_id>')
 @login_required
@@ -891,6 +861,7 @@ def following_list(user_id):
     following = db.session.query(Users).join(Amici, Amici.user_amico == Users.id_utente).filter(Amici.io_utente == user_id).all()
     return render_template('lista_seguiti.html', following=following)
 
+    ## poter unfolloware una persona dall'elenco
 
 @app.route('/unfollow/<int:id_amico>', methods=['POST'])
 @login_required
@@ -910,6 +881,8 @@ def unfollow(id_amico):
         flash('Impossibile trovare l\'amicizia da rimuovere.', 'error')
 
     return redirect(url_for('following_list', user_id=user_id))  # Redirige alla pagina dei seguiti
+
+    ## poter togliere un follower dall'elenco
 
 @app.route('/remove_follower/<int:id_follower>', methods=['POST'])
 @login_required
@@ -932,6 +905,8 @@ def remove_follower(id_follower):
     return redirect(url_for('followers_list', user_id=user_id))
 
 #------------------------------- chat tra amici ---------------------------------#
+
+    ## elenco delle conversazioni
 
 @app.route('/conversations')
 def conversations():
@@ -958,6 +933,8 @@ def conversations():
     users = {user.id_utente: user for user in db.session.query(Users).filter(Users.id_utente.in_(user_ids)).all()}
 
     return render_template('conversations.html', conversations=conversations, users=users)
+
+    ## chat tra amici
 
 @app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
 def chat(other_user_id):
@@ -996,6 +973,8 @@ def chat(other_user_id):
     users = {user.id_utente: user for user in all_users}
 
     return render_template('chat.html', messages=messages, user=user, users=users)
+
+    ## non ricordo cosa faccia :)
 
 @app.route('/send_message/<int:other_user_id>', methods=['POST'])
 def send_message(other_user_id):
