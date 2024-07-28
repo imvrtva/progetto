@@ -67,7 +67,7 @@
             {% for annuncio in annunci %}
                 <li class="post-item mb-3">
                     <div class="card">
-                        <a href="{{ url_for('recupera_statistiche_annuncio', annuncio_id=annuncio.id) }}" class="stretched-link"></a>
+                        
                         <div class="card-body">
                             <h5 class="card-title">Annuncio ID: {{ annuncio.id }}</h5>
                             <p class="card-text"><strong>Tipo Post:</strong> {{ annuncio.tipo_post }}</p>

@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -1180,23 +1180,24 @@ def pubblica_annuncio():
         tipo_post = request.form['tipo_post']
         sesso_target = request.form['sesso_target']
         eta_target = int(request.form['eta_target'])
-        nome_interesse = request.form['nome_interesse']
+        interessi = request.form.getlist('interessi')
         durata_annuncio = int(request.form['durata_annuncio'])
+        
+        # Join interests into a single string (or handle as needed by crea_annuncio)
+        nome_interesse = ','.join(interessi)
         
         # Chiama la funzione per creare l'annuncio
         risultato = crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio)
         
         if isinstance(risultato, str):  # Se il risultato è un messaggio di errore
-            return render_template('pubblica_annuncio.html', message=risultato)
+            interests = Interessi.query.all()
+            return render_template('pubblica_annuncio.html', message=risultato, interests=interests)
         else:
             # Reindirizza alla home dell'inserzionista con un messaggio di successo
             return redirect(url_for('inserzionista', id_utente=user_id))
     
-    return render_template('pubblica_annuncio.html', message=None)
-
-from sqlalchemy.orm import joinedload
-
-
+    interests = Interessi.query.all()
+    return render_template('pubblica_annuncio.html', message=None, interests=interests)
 
 
 def recupera_annunci_utente(current_user_id):
@@ -1260,23 +1261,6 @@ def recupera_statistiche_annuncio(annuncio_id):
         'likes': num_likes
     }
 
-
-"""
-
-def recupera_annunci_utente(current_user_id):
-    now = datetime.now()
-    
-    # Recupera gli annunci che non sono scaduti e che sono destinati all'utente corrente
-    annunci = Annunci.query.filter(
-        (Annunci.sesso_target == 'tutti') |
-        (Annunci.sesso_target == current_user.sesso),
-        Annunci.eta_target >= current_user.eta,
-        Annunci.fine > now
-    ).order_by(Annunci.inizio.desc()).all()
-    
-    return annunci
-
-"""
 
 
 

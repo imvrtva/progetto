@@ -8,76 +8,93 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
+            background-color: #f4f4f4;
             margin: 0;
             padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
         .container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 8px;
+            background: white;
+            padding: 2rem;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 600px;
         }
         h1 {
             text-align: center;
-            color: #007bff;
+            color: #333;
         }
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+        form div {
+            margin-bottom: 1rem;
         }
         label {
-            font-weight: bold;
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
         }
         input, select, button {
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
+            width: 100%;
+            padding: 0.75rem;
+            margin-top: 0.25rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        select[multiple] {
+            height: auto;
         }
         button {
-            background-color: #007bff;
-            color: #fff;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #4cae4c;
         }
         a {
             display: block;
             text-align: center;
-            margin-top: 20px;
-            color: #007bff;
+            margin-top: 1rem;
+            color: #337ab7;
             text-decoration: none;
         }
         a:hover {
             text-decoration: underline;
         }
-        .message {
+        p.message {
             text-align: center;
             color: red;
-            font-weight: bold;
         }
+        #interessi-suggestions div {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+#interessi-suggestions div:hover {
+    background-color: #f0f0f0;
+}
+
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Pubblica un Nuovo Annuncio</h1>
         
+        <!-- Mostra un messaggio di conferma o errore -->
         {% if message %}
             <p class="message">{{ message }}</p>
         {% endif %}
         
-        <form action="{{ url_for('pubblica_annuncio') }}" method="post">
+        <!-- Form per la creazione dell'annuncio -->
+        <form action="{{ url_for('pubblica_annuncio') }}" method="post" enctype="multipart/form-data">
             <div>
                 <label for="tipo_post">Tipo di Post:</label>
                 <select id="tipo_post" name="tipo_post" required>
-                    <option value="immagine">Immagini</option>
+                    <option value="immagini">Immagini</option>
                     <option value="video">Video</option>
                     <option value="testo">Testo</option>
                 </select>
@@ -95,19 +112,46 @@
                 <input type="number" id="eta_target" name="eta_target" min="0" required>
             </div>
             <div>
-                <label for="nome_interesse">Nome Interesse:</label>
-                <input type="text" id="nome_interesse" name="nome_interesse" required>
+                <label for="interessi">Interessi:</label>
+                <input type="text" id="interessi" name="interessi" placeholder="Inizia a digitare...">
+                <div id="interessi-suggestions" style="display: none; border: 1px solid #ccc; background-color: #fff;"></div>
             </div>
+            
+            
+            
             <div>
                 <label for="durata_annuncio">Durata Annuncio (giorni):</label>
                 <input type="number" id="durata_annuncio" name="durata_annuncio" min="1" required>
             </div>
             <div>
+                <label for="immagine_annuncio">Carica Immagine (opzionale):</label>
+                <input type="file" id="immagine_annuncio" name="immagine_annuncio" accept="image/*">
+            </div>
+            <div>
+                <label for="video_annuncio">Carica Video (opzionale):</label>
+                <input type="file" id="video_annuncio" name="video_annuncio" accept="video/*">
+            </div>
+            <div>
                 <button type="submit">Pubblica Annuncio</button>
             </div>
         </form>
+        <script>
+            const interests = [{% for interesse in interests %} "{{ interesse.nome }}"{% if not loop.last %}, {% endif %}{% endfor %}];
         
-        <a href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}">Torna alla Home Inserzionista</a>
-    </div>
-</body>
-</html>
+            document.getElementById('interessi').addEventListener('input', function() {
+                const input = this.value.toLowerCase();
+                const suggestions = interests.filter(interest => interest.toLowerCase().includes(input));
+                const suggestionsDiv = document.getElementById('interessi-suggestions');
+        
+                suggestionsDiv.innerHTML = suggestions.map(interest => `<div>${interest}</div>`).join('');
+                suggestionsDiv.style.display = suggestions.length ? 'block' : 'none';
+            });
+        
+            document.getElementById('interessi-suggestions').addEventListener('click', function(e) {
+                if (e.target.tagName === 'DIV') {
+                    document.getElementById('interessi').value = e.target.innerText;
+                    this.style.display = 'none';
+                }
+            });
+        </script>
+        

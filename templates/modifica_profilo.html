@@ -45,14 +45,14 @@
             </select>
         </div>
         <div class="form-group">
-            <label for="eta">EtÃ :</label>
+            <label for="eta">Etá :</label>
             <input type="number" class="form-control" id="eta" name="eta" value="{{ user.eta }}" required>
         </div>
         <div class="form-group">
             <label for="ruolo">Ruolo:</label>
             <select class="form-control" id="ruolo" name="ruolo">
                 <option value="utente" {% if user.ruolo == 'utente' %}selected{% endif %}>Utente</option>
-                <option value="inserzionista" {% if user.ruolo == 'inserzionista' %}selected{% endif %}>Inserzionista</option>
+                <option value="pubblicitari" {% if user.ruolo == 'pubblicitari' %}selected{% endif %}>Inserzionista</option>
             </select>
         </div>
         <div class="form-group">
