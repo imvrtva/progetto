@@ -45,6 +45,12 @@
     <form action="/pubblica_video" method="get">
         <button type="submit">Pubblica Video</button>
     </form>
+    <!-- Pulsante visibile solo per i pubblicitari -->
+    {% if is_pubblicitario %}
+        <form action="/pubblica_annuncio" method="get">
+            <button type="submit">Pubblica Annuncio</button>
+        </form>
+    {% endif %}
 </body>
 </html>
 {% endblock %}

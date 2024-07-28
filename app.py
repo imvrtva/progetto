@@ -11,7 +11,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.types import Enum as SQLAlchemyEnum
 from werkzeug.utils import secure_filename
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pytz
 
 #------------------------ accesso server -------------------------#
@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -44,6 +44,7 @@ class Sesso(Enum):
     maschio = "maschio"
     femmina = "femmina"
     altro = "altro"
+    tutti="tutti"
 
 
 class Users(UserMixin, db.Model):
@@ -114,6 +115,10 @@ class Users(UserMixin, db.Model):
         else:
             return '/contenuti/default_profile.png'  # Un percorso di immagine di default
 
+    @property
+    def is_pubblicitario(self):
+        return self.ruolo == Ruolo.pubblicitari
+    
     def id(self):
         return self.id_utente
 
@@ -211,7 +216,7 @@ class Annunci(db.Model, UserMixin):
     __tablename__ = 'annunci'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    advertiser = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
+    advertiser_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     tipo_post = Column(SQLAlchemyEnum('immagini', 'video', 'testo', name='tipo_post'))
     sesso_target = Column(SQLAlchemyEnum(Sesso))
     eta_target = Column(Integer, unique=False, nullable=False)
@@ -219,8 +224,8 @@ class Annunci(db.Model, UserMixin):
     inizio = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
     fine = Column(Date, default=func.current_timestamp())
 
-    def __init__(self, advertiser, tipo_post, sesso_target, eta_target, interesse_target, fine):
-        self.advertiser = advertiser
+    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, fine):
+        self.advertiser_id = advertiser_id
         self.tipo_post = tipo_post
         self.sesso_target = sesso_target
         self.eta_target = eta_target
@@ -459,16 +464,55 @@ def utente(id_utente):
     # Recupera gli utenti seguiti in una sola query
     utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
 
-    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict)
+# Recupera gli interessi dell'utente corrente
+    interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
+    interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
+
+    # Recupera gli annunci che corrispondono agli interessi e ai target dell'utente
+    now = datetime.now()
+    annunci = Annunci.query.filter(
+        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Corrispondenza degli interessi
+        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
+        (Annunci.eta_target <= user.eta),  # Età dell'utente deve essere minore o uguale a quella target dell'annuncio
+        Annunci.fine > now
+    ).order_by(Annunci.fine.desc()).all()
+
+    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci)
 
     
     ## home page inserzionista
 
-@app.route('/homepage/inserzionista/<username>', methods=['GET', 'POST'])
+@app.route('/homepage/inserzionista/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
-def inserzionista(username):
-    user = Users.query.filter_by(username=username).first_or_404()
-    return render_template('home_inserzionista.html', user=user)
+def inserzionista(id_utente):
+    # Recupera l'utente inserzionista
+    user = Users.query.filter_by(id_utente=id_utente).first()
+    
+    # Recupera l'ID dell'utente corrente (chi sta visualizzando la pagina)
+    current_user_id = current_user.id_utente
+    
+    # Recupera gli utenti seguiti dall'utente corrente
+    seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+    
+    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
+    seguiti_ids.append(current_user_id)
+    
+    # Recupera i post degli utenti seguiti
+    posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
+    
+    # Recupera gli utenti seguiti in una sola query
+    utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
+    
+    # Recupera gli interessi dell'utente corrente
+    interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
+    interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
+    # Recupera gli annunci creati dall'utente corrente
+    now = datetime.now()
+    annunci = Annunci.query.filter(
+        Annunci.advertiser_id == current_user_id,
+        Annunci.fine > now
+    ).order_by(Annunci.inizio.desc()).all()
+    return render_template('home_inserzionista.html',user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci)
 
 
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
@@ -550,7 +594,11 @@ def serve_file(filename):
 
 @app.route('/scegli_post', methods=['GET', 'POST'])
 def scegli_post():
-    return render_template('scelta_post.html')
+    user = current_user
+    
+    is_pubblicitario = current_user.is_pubblicitario  # Adatta a seconda della tua logica
+    
+    return render_template('scelta_post.html',is_pubblicitario=is_pubblicitario)
 
     ## pubblicazione testo
  
@@ -985,6 +1033,147 @@ def send_message(other_user_id):
     db.session.add(new_message)
     db.session.commit()
     return redirect(url_for('chat', user_id=other_user_id))
+
+
+
+
+def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio):
+    """
+    Crea un annuncio specifico basato sugli interessi di un utente.
+    """
+    
+    # Trova l'ID dell'interesse basato sul nome
+    interesse = db.session.query(Interessi).filter_by(nome=nome_interesse).first()
+    if not interesse:
+        return "Interesse non trovato."
+    valid_sesso_targets = ['maschio', 'femmina', 'tutti']
+    if sesso_target not in valid_sesso_targets:
+        return f"Sesso target non valido. Deve essere uno di: {', '.join(valid_sesso_targets)}."
+    try:
+        # Calcola la data di scadenza
+        fine = datetime.now() + timedelta(days=durata_annuncio)
+        
+        # Crea il nuovo annuncio
+        annuncio = Annunci(
+            advertiser_id=user_id,  # Assicurati che il campo sia corretto
+            tipo_post=tipo_post,
+            sesso_target=sesso_target,
+            eta_target=eta_target,
+            interesse_target=interesse.id_interessi,
+            fine=fine
+        )
+        
+        # Aggiungi l'annuncio al database
+        db.session.add(annuncio)
+        db.session.commit()
+        return annuncio
+        
+    except IntegrityError:
+        db.session.rollback()
+        return "Errore di integrità del database."
+    except Exception as e:
+        db.session.rollback()
+        return str(e)
+
+
+@app.route('/pubblica_annuncio', methods=['GET', 'POST'])
+def pubblica_annuncio():
+    if request.method == 'POST':
+        user_id = current_user.id_utente
+        tipo_post = request.form['tipo_post']
+        sesso_target = request.form['sesso_target']
+        eta_target = int(request.form['eta_target'])
+        nome_interesse = request.form['nome_interesse']
+        durata_annuncio = int(request.form['durata_annuncio'])
+        
+        # Chiama la funzione per creare l'annuncio
+        risultato = crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio)
+        
+        if isinstance(risultato, str):  # Se il risultato è un messaggio di errore
+            return render_template('pubblica_annuncio.html', message=risultato)
+        else:
+            # Reindirizza alla home dell'inserzionista con un messaggio di successo
+            return redirect(url_for('inserzionista', id_utente=user_id))
+    
+    return render_template('pubblica_annuncio.html', message=None)
+
+from sqlalchemy.orm import joinedload
+
+def recupera_annunci_utente(current_user_id):
+    now = datetime.now()
+    
+    # Recupera l'utente corrente
+    current_user = Users.query.get(current_user_id)
+    
+    # Recupera gli interessi dell'utente corrente
+    interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
+    interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
+
+    # Recupera gli annunci che non sono scaduti e che sono destinati all'utente corrente
+    annunci = Annunci.query.filter(
+        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Annunci con interessi che corrispondono o senza target specificato
+        ((Annunci.sesso_target == current_user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
+        (Annunci.eta_target >= current_user.eta),
+        Annunci.fine > now
+    ).order_by(Annunci.fine.desc()).all()
+    
+    return annunci
+
+
+
+"""
+
+def recupera_annunci_utente(current_user_id):
+    now = datetime.now()
+    
+    # Recupera gli annunci che non sono scaduti e che sono destinati all'utente corrente
+    annunci = Annunci.query.filter(
+        (Annunci.sesso_target == 'tutti') |
+        (Annunci.sesso_target == current_user.sesso),
+        Annunci.eta_target >= current_user.eta,
+        Annunci.fine > now
+    ).order_by(Annunci.inizio.desc()).all()
+    
+    return annunci
+
+"""
+@app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
+def chat(other_user_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+
+    current_user_id = current_user.id_utente
+
+    # Fetch all messages between the current user and the specified user
+    messages = db.session.query(Messaggi).filter(
+        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == other_user_id)) |
+        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == current_user_id))
+    ).order_by(Messaggi.creato_at.asc()).all()
+
+    if request.method == 'POST':
+        # Handle new message
+        message_text = request.form.get('message')
+        if message_text:
+            new_message = Messaggi(
+                testo=message_text,
+                mittente_id=current_user_id,
+                destinatario_id=other_user_id,
+                postinviato=None  # Assuming this is optional or not used in this context
+            )
+            db.session.add(new_message)
+            db.session.commit()
+            return redirect(url_for('chat', other_user_id=other_user_id))
+
+    # Fetch user details for the chat partner
+    user = db.session.query(Users).get(other_user_id)
+    if not user:
+        abort(404)  # User not found, handle accordingly
+
+    # Fetch all users to pass to the template for username resolution
+    all_users = db.session.query(Users).all()
+    users = {u.id_utente: u for u in all_users}
+
+    return render_template('chat.html', messages=messages, user=user, users=users)
 
 
 # Inizializzazione dell'applicazione

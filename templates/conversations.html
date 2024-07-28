@@ -1,3 +1,8 @@
+{% extends "base.html" %}
+
+{% block title %}Conversazioni{% endblock %}
+
+{% block content %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,21 +10,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conversations</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
         .container {
             width: 90%;
             max-width: 1200px;
             margin: auto;
-            padding: 20px;
+            padding: 40px;
         }
         h1 {
             text-align: center;
             color: #333;
+        }
+        .search-container {
+            text-align: center;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            padding: 10px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+        .suggestions {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            margin: 0 auto;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .suggestion-item:hover {
+            background-color: #e0e0e0;
         }
         .conversation-list {
             list-style-type: none;
@@ -38,6 +70,11 @@
         .conversation-item:hover {
             background-color: #e0e0e0;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .conversation-item a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
         }
         .conversation-header {
             font-weight: bold;
@@ -61,17 +98,86 @@
             color: #999;
         }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchBox = document.querySelector('.search-box');
+            const suggestionsContainer = document.querySelector('.suggestions');
+            
+            searchBox.addEventListener('input', function() {
+                const query = searchBox.value;
+                if (query.length > 0) {
+                    fetch(`/search_suggestions?q=${query}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            suggestionsContainer.innerHTML = '';
+                            data.suggestions.forEach(suggestion => {
+                                const item = document.createElement('div');
+                                item.classList.add('suggestion-item');
+                                item.textContent = suggestion.username;
+                                item.addEventListener('click', function() {
+                                    window.location.href = `/chat/${suggestion.id}`;
+                                });
+                                suggestionsContainer.appendChild(item);
+                            });
+                        });
+                } else {
+                    suggestionsContainer.innerHTML = '';
+                }
+            });
+            
+            document.addEventListener('click', function(event) {
+                if (!searchBox.contains(event.target) && !suggestionsContainer.contains(event.target)) {
+                    suggestionsContainer.innerHTML = '';
+                }
+            });
+
+            function timeSince(date) {
+                const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+                let interval = seconds / 31536000;
+
+                if (interval > 1) {
+                    return Math.floor(interval) + " anni fa";
+                }
+                interval = seconds / 2592000;
+                if (interval > 1) {
+                    return Math.floor(interval) + " mesi fa";
+                }
+                interval = seconds / 86400;
+                if (interval > 1) {
+                    return Math.floor(interval) + " giorni fa";
+                }
+                interval = seconds / 3600;
+                if (interval > 1) {
+                    return Math.floor(interval) + " ore fa";
+                }
+                interval = seconds / 60;
+                if (interval > 1) {
+                    return Math.floor(interval) + " minuti fa";
+                }
+                return Math.floor(seconds) + " secondi fa";
+            }
+
+            document.querySelectorAll('.message-time').forEach(function(element) {
+                const timestamp = element.getAttribute('data-timestamp');
+                element.textContent = timeSince(timestamp);
+            });
+        });
+    </script>
 </head>
 <body>
     <div class="container">
-        <h1>Your Conversations</h1>
+        <h1>Messaggi</h1>
+        <div class="search-container">
+            <input type="text" class="search-box" placeholder="Cerca un amico per iniziare la conversazione...">
+            <div class="suggestions"></div>
+        </div>
         <ul class="conversation-list">
             {% for other_user_id, messages in conversations.items() %}
                 <li class="conversation-item">
                     <a href="{{ url_for('chat', other_user_id=other_user_id) }}">
                         <div class="conversation-header">
                             {% set user = users.get(other_user_id) %}
-                            Conversation with {{ user.username if user else 'Unknown User' }}
+                            {{ user.username if user else 'Unknown User' }}
                         </div>
                         <div class="messages">
                             {% if messages %}
@@ -82,7 +188,7 @@
                                         <strong>{{ sender.username if sender else 'Unknown User' }}:</strong> 
                                         {{ last_message.testo | truncate(100, True) }}
                                     </div>
-                                    <div class="message-time">
+                                    <div class="message-time" data-timestamp="{{ last_message.creato_at }}">
                                         {{ last_message.creato_at.strftime('%Y-%m-%d %H:%M') }}
                                     </div>
                                 </div>
@@ -101,3 +207,4 @@
     </div>
 </body>
 </html>
+{% endblock %}
