@@ -10,48 +10,52 @@
         font-family: 'Roboto', sans-serif;
         margin: 0;
         padding: 0;
+
         display: flex;
-        justify-content: center; /* Centro orizzontalmente */
-        align-items: center;     /* Centro verticalmente */
-        height: 100vh;           /* Assicura che il body occupi l'intera altezza della viewport */
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
     }
     .chat-container {
         width: 90%;
-        max-width: 800px;
+        max-width: 600px;
         display: flex;
         flex-direction: column;
         align-items: center;
         background: #fff;
-        border: 1px solid #ddd;
+        border: 1px solid #e6e6e6;
         border-radius: 10px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         overflow: hidden;
-        height: 80vh;            /* Regola l'altezza come necessario */
-        max-height: 800px;      /* Opzionale: limita l'altezza massima */
+        height: 80vh;
+        max-height: 800px;
     }
     .chat-header {
         width: 100%;
         text-align: left;
-        padding: 10px;
-        border-bottom: 1px solid #ddd;
+        padding: 10px 20px;
+        border-bottom: 1px solid #e6e6e6;
         background: #fff;
+        display: flex;
+        align-items: center;
     }
     .chat-header a {
         text-decoration: none;
-        color: #000000;
+        color: #262626;
         font-weight: 500;
+        font-size: 1.2em;
     }
     .chat-header a:hover {
         text-decoration: underline;
     }
     .chat-box {
         width: 100%;
-        height: calc(100% - 80px); /* Regola l'altezza per adattarsi al contenitore */
-        padding: 10px;
-        background: #f9f9f9;
+        height: calc(100% - 80px);
+        padding: 10px 20px;
+        background: #fafafa;
         display: flex;
         flex-direction: column;
-        overflow-y: auto;         /* Aggiungi lo scorrimento verticale se necessario */
+        overflow-y: auto;
     }
     .message {
         display: flex;
@@ -73,7 +77,7 @@
     }
     .message strong {
         font-size: 0.85em;
-        color: #555;
+        color: #999;
         margin-bottom: 2px;
     }
     .message-text {
@@ -84,37 +88,60 @@
     }
     .message.sent .message-text {
         background-color: #dcf8c6;
-        color: #000;
+        color: #262626;
     }
     .message.received .message-text {
         background-color: #fff;
-        border: 1px solid #ddd;
-        color: #000;
+        border: 1px solid #e6e6e6;
+        color: #262626;
     }
     .message-time {
         font-size: 0.75em;
-        color: #888;
+        color: #999;
         margin-top: 2px;
         text-align: right;
+    }
+    .post-preview {
+        background: #fff;
+        border: 1px solid #e6e6e6;
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 10px;
+        width: 100%;
+    }
+    .post-preview a {
+        text-decoration: none; /* Remove underline */
+    }
+    .post-preview h3 {
+        margin: 0;
+        font-size: 1.2em;
+        color: #262626;
+    }
+    .post-preview p {
+        margin: 5px 0 0;
+        color: #262626;
     }
     form {
         width: 100%;
         display: flex;
-        padding: 10px;
-        border-top: 1px solid #ddd;
+        padding: 10px 20px;
+        border-top: 1px solid #e6e6e6;
         background: #fff;
+        box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.1);
     }
     form input[type="text"] {
         flex: 1;
         padding: 10px;
-        border: 1px solid #ddd;
+        border: 1px solid #e6e6e6;
         border-radius: 20px;
         outline: none;
         transition: border-color 0.3s ease;
         font-size: 1em;
+        background-color: #fafafa;
+        color: #262626;
     }
     form input[type="text"]:focus {
-        border-color: #aaa;
+        border-color: #ccc;
     }
     form input[type="submit"] {
         padding: 10px 20px;
@@ -138,35 +165,34 @@
     </div>
     <div class="chat-box" id="chat-box">
         {% for message in messages %}
-            <div class="message {{ 'sent' if message.mittente_id == current_user.id else 'received' }}">
+            <div class="message {{ 'sent' if message.mittente_id == current_user.id_utente else 'received' }}">
                 <div class="message-content">
                     <strong>{{ users.get(message.mittente_id).username if users.get(message.mittente_id) else 'Unknown User' }}</strong>
-                    <div class="message-text">{{ message.testo }}</div>
+                    {% if message.postinviato %}
+                        <div class="post-preview">
+                            <a href="{{ url_for('post_details', post_id=message.postinviato) }}">
+                                {% if posts[message.postinviato].media %}
+                                    <img src="{{ url_for('static', filename=posts[message.postinviato].media) }}" alt="Post media" style="max-width: 100%;">
+                                {% endif %}
+                                <p>{{ posts[message.postinviato].testo[:100] }}...</p>
+                            </a>
+                        </div>
+                    {% endif %}
+                    <div class="message-text">{{ message.testo | urlize }}</div>
                     <div class="message-time">{{ message.creato_at.strftime('%H:%M') }}</div>
                 </div>
             </div>
         {% endfor %}
     </div>
-    <form action="{{ url_for('chat', other_user_id=user.id_utente) }}" method="post">
-        <input type="text" name="message" placeholder="Scrivi un messaggio..." required>
+    <form action="{{ url_for('chat', other_user_id=other_user_id) }}" method="POST">
+        <input type="text" name="message" placeholder="Scrivi un messaggio...">
         <input type="submit" value="Invia">
     </form>
 </div>
 
 <script>
-    // Function to scroll to the bottom of the chat-box
-    function scrollToBottom() {
-        const chatBox = document.getElementById('chat-box');
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-        // Call the function on page load to ensure the view starts at the bottom
-        window.onload = scrollToBottom;
-
-        // Call the function whenever a new message is added
-        // You might need to trigger this on the event of receiving a new message
-        // For example, if using a real-time system, you might call this in the message update handler
-    </script>
-</body>
-</html>
+    // Scroll to the bottom of the chat box
+    var chatBox = document.getElementById('chat-box');
+    chatBox.scrollTop = chatBox.scrollHeight;
+</script>
 {% endblock %}

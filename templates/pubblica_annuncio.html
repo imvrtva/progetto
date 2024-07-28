@@ -5,50 +5,109 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pubblica Annuncio</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input, select, button {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .message {
+            text-align: center;
+            color: red;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Pubblica un Nuovo Annuncio</h1>
-    
-    <!-- Mostra un messaggio di conferma o errore -->
-    {% if message %}
-        <p>{{ message }}</p>
-    {% endif %}
-    
-    <!-- Form per la creazione dell'annuncio -->
-    <form action="{{ url_for('pubblica_annuncio') }}" method="post">
-        <div>
-            <label for="tipo_post">Tipo di Post:</label>
-            <select id="tipo_post" name="tipo_post" required>
-                <option value="immagini">Immagini</option>
-                <option value="video">Video</option>
-                <option value="testo">Testo</option>
-            </select>
-        </div>
-        <div>
-            <label for="sesso_target">Sesso Target:</label>
-            <select id="sesso_target" name="sesso_target" required>
-                <option value="maschio">Maschio</option>
-                <option value="femmina">Femmina</option>
-                <option value="tutti">Tutti</option>
-            </select>
-        </div>
-        <div>
-            <label for="eta_target">Età Target:</label>
-            <input type="number" id="eta_target" name="eta_target" min="0" required>
-        </div>
-        <div>
-            <label for="nome_interesse">Nome Interesse:</label>
-            <input type="text" id="nome_interesse" name="nome_interesse" required>
-        </div>
-        <div>
-            <label for="durata_annuncio">Durata Annuncio (giorni):</label>
-            <input type="number" id="durata_annuncio" name="durata_annuncio" min="1" required>
-        </div>
-        <div>
-            <button type="submit">Pubblica Annuncio</button>
-        </div>
-    </form>
-    
-    <a href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}">Torna alla Home Inserzionista</a>
+    <div class="container">
+        <h1>Pubblica un Nuovo Annuncio</h1>
+        
+        {% if message %}
+            <p class="message">{{ message }}</p>
+        {% endif %}
+        
+        <form action="{{ url_for('pubblica_annuncio') }}" method="post">
+            <div>
+                <label for="tipo_post">Tipo di Post:</label>
+                <select id="tipo_post" name="tipo_post" required>
+                    <option value="immagine">Immagini</option>
+                    <option value="video">Video</option>
+                    <option value="testo">Testo</option>
+                </select>
+            </div>
+            <div>
+                <label for="sesso_target">Sesso Target:</label>
+                <select id="sesso_target" name="sesso_target" required>
+                    <option value="maschio">Maschio</option>
+                    <option value="femmina">Femmina</option>
+                    <option value="tutti">Tutti</option>
+                </select>
+            </div>
+            <div>
+                <label for="eta_target">Età Target:</label>
+                <input type="number" id="eta_target" name="eta_target" min="0" required>
+            </div>
+            <div>
+                <label for="nome_interesse">Nome Interesse:</label>
+                <input type="text" id="nome_interesse" name="nome_interesse" required>
+            </div>
+            <div>
+                <label for="durata_annuncio">Durata Annuncio (giorni):</label>
+                <input type="number" id="durata_annuncio" name="durata_annuncio" min="1" required>
+            </div>
+            <div>
+                <button type="submit">Pubblica Annuncio</button>
+            </div>
+        </form>
+        
+        <a href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}">Torna alla Home Inserzionista</a>
+    </div>
 </body>
 </html>

@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -231,17 +231,49 @@ class Annunci(db.Model, UserMixin):
         self.eta_target = eta_target
         self.interesse_target = interesse_target
         self.fine = fine
+        
+        
+class AnnunciClicks(db.Model):
+    __tablename__ = 'annunci_clicks'
 
+    annuncio_id = Column(Integer, ForeignKey('annunci.id'), primary_key=True)
+    utente_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)
+    clicked_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
+
+    def __init__(self, annuncio_id, utente_id, clicked_at ):
+        self.annuncio_id = annuncio_id
+        self.utente_id = utente_id
+        self.clicked_at = clicked_at 
+
+
+class AnnunciComments(db.Model):
+    __tablename__ = 'annunci_comments'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    annuncio_id = Column(Integer, ForeignKey('annunci.id'), nullable=False)
+    utente_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
+    content = Column(Text, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
+
+    def __init__(self, annuncio_id, utente_id, content ,created_at ):
+        self.annuncio_id = annuncio_id
+        self.utente_id = utente_id
+        self.content = content
+        self.created_at = created_at
+
+
+       
 class AnnunciLikes(db.Model, UserMixin):
     __tablename__ = 'annunci_likes'
 
     annuncio_id = Column(Integer, ForeignKey('annunci.id'), primary_key=True)
-    user_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Modificato in user_id
+    utente_id = Column(Integer, ForeignKey('users.id_utente'), primary_key=True)  # Modificato in user_id
     clicked_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, annuncio_id, user_id):
+    def __init__(self, annuncio_id, utente_id):
         self.annuncio_id = annuncio_id
-        self.user_id = user_id
+        self.utente_id = utente_id
+
 
 class Messaggi(db.Model):
     __tablename__ = 'messaggi'
@@ -512,7 +544,15 @@ def inserzionista(id_utente):
         Annunci.advertiser_id == current_user_id,
         Annunci.fine > now
     ).order_by(Annunci.inizio.desc()).all()
-    return render_template('home_inserzionista.html',user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci)
+    
+    
+    # Recupera statistiche per ogni annuncio
+    statistiche_annunci = {
+        annuncio.id: recupera_statistiche_annuncio(annuncio.id) for annuncio in annunci
+    }
+    
+    
+    return render_template('home_inserzionista.html',user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci)
 
 
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
@@ -533,6 +573,7 @@ from sqlalchemy.exc import IntegrityError
 @login_required
 def modifica_profilo():
     user = Users.query.get(current_user.id_utente)  # Assumi che current_user abbia l'id_utente
+    interessi = Interessi.query.all()  # Retrieve all available interests
 
     if request.method == 'POST':
         # Gestione della richiesta POST
@@ -545,14 +586,15 @@ def modifica_profilo():
         ruolo = request.form.get('ruolo')
         bio = request.form.get('bio')
         immagine = request.files.get('immagine')
+        interessi_selezionati = request.form.getlist('interessi')
 
         if not all([username, nome, cognome, email, sesso, eta, ruolo]):
-            flash('Tutti i campi sono obbligatori.', 'alert alert-danger')
+            
             return redirect(url_for('modifica_profilo'))
 
         existing_user = Users.query.filter_by(username=username).first()
         if existing_user and existing_user.id_utente != current_user.id_utente:
-            flash('Username già in uso.', 'alert alert-danger')
+            flash('Username giÃ  in uso.', 'alert alert-danger')
             return redirect(url_for('modifica_profilo'))
 
         if user:
@@ -571,14 +613,20 @@ def modifica_profilo():
                 immagine.save(filepath)
                 user.immagine = filename
 
+            # Update user interests
+            UserInteressi.query.filter_by(utente_id=user.id_utente).delete()  # Remove all current interests
+            for interesse_id in interessi_selezionati:
+                user_interesse = UserInteressi(utente_id=user.id_utente, id_interessi=interesse_id)
+                db.session.add(user_interesse)
+
             db.session.commit()
-            flash('Profilo aggiornato con successo!', 'alert alert-success')
-        else:
-            flash('Utente non trovato', 'alert alert-danger')
 
         return redirect(url_for('profilo'))
 
-    return render_template('modifica_profilo.html', user=user)
+    # Retrieve current user interests for display in the form
+    user_interessi = [ui.id_interessi for ui in UserInteressi.query.filter_by(utente_id=user.id_utente).all()]
+
+    return render_template('modifica_profilo.html', user=user, interessi=interessi, user_interessi=user_interessi)
 
 
 @app.route('/contenuti/<filename>')
@@ -637,12 +685,25 @@ def pubblica_immagini():
     if request.method == 'POST':
         immagine = request.files['immagine']
         testo = request.form['testo']
-        nome_file = 'contenuti' + immagine.filename  # Modificare il percorso per salvare l'immagine
+        
+        # Ensure the 'contenuti' directory exists
+        contenuti_path = os.path.join(current_app.root_path, 'contenuti')
+        if not os.path.exists(contenuti_path):
+            os.makedirs(contenuti_path)
+        
+        # Construct the full file path
+        nome_file = os.path.join(contenuti_path, immagine.filename)
+        
+        # Save the image to the 'contenuti' directory
         immagine.save(nome_file)
-        nuovo_post = Post(utente=current_user.id_utente, tipo_post='immagini', testo=testo, media=nome_file)
+        
+        # Create a new post entry in the database
+        nuovo_post = Post(utente=current_user.id_utente, tipo_post='immagini', testo=testo, media=immagine.filename)
         db.session.add(nuovo_post)
         db.session.commit()
+        
         return redirect(url_for('utente', id_utente=current_user.id_utente))
+    
     return render_template('pubblicazione_immagine.html')
 
 
@@ -663,11 +724,12 @@ def post_details(post_id):
         if comment_user:
             comment_users[comment.id] = comment_user
 
-    # Verifica se l'utente ha messo mi piace al post
     liked = PostLikes.query.filter_by(post_id=post_id, utente_id=current_user.id_utente).first() is not None
 
+    # Fetch the user's friends
+    friends = db.session.query(Users).join(Amici, Amici.user_amico == Users.id_utente).filter(Amici.io_utente == current_user.id_utente).all()
+
     if request.method == 'POST':
-        # Aggiungi un nuovo commento
         if 'content' in request.form:
             content = request.form['content']
             new_comment = PostComments(post_id=post_id, utente_id=current_user.id_utente, content=content)
@@ -675,8 +737,8 @@ def post_details(post_id):
             db.session.commit()
             return redirect(url_for('post_details', post_id=post_id))
 
-    return render_template('post.html', post=post, post_user=post_user, comments=comments, comment_users=comment_users, liked=liked)
-
+    return render_template('post.html', post=post, post_user=post_user, comments=comments, comment_users=comment_users, liked=liked, friends=friends)
+    
     ## eliminare post
 
 @app.route('/elimina_post/<int:post_id>', methods=['POST'])
@@ -695,6 +757,32 @@ def elimina_post(post_id):
     db.session.commit()
     flash("Post eliminato con successo.", category="alert alert-success")
     return redirect(url_for('utente', id_utente=current_user.id_utente))
+
+
+## condividere post
+
+@app.route('/share_post/<int:post_id>/<int:friend_id>', methods=['POST'])
+def share_post(post_id, friend_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+
+    additional_text = request.form.get('additional_text')
+    if additional_text:
+        new_message = Messaggi(
+            testo=additional_text,
+            mittente_id=current_user.id_utente,
+            destinatario_id=friend_id,
+            postinviato=post_id
+        )
+        db.session.add(new_message)
+        db.session.commit()
+
+    return redirect(url_for('chat', other_user_id=friend_id))
+
+
+
+
+
 
 #------------------------------ inserire ed eliminare commenti -------------------------------#
 
@@ -984,8 +1072,51 @@ def conversations():
 
     ## chat tra amici
 
-    
-    ## non ricordo cosa faccia :)
+@app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
+def chat(other_user_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+
+    current_user_id = current_user.id_utente
+
+    # Fetch all messages between the current user and the specified user
+    messages = db.session.query(Messaggi).filter(
+        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == other_user_id)) |
+        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == current_user_id))
+    ).order_by(Messaggi.creato_at.asc()).all()
+
+    if request.method == 'POST':
+        # Handle new message
+        message_text = request.form.get('message')
+        postinviato = request.form.get('postinviato', None)
+        additional_text = request.form.get('additional_text')  # Fetch the additional text
+
+        if message_text or postinviato or additional_text:
+            new_message = Messaggi(
+                testo=message_text if message_text else additional_text,  # Prioritize message_text if present
+                mittente_id=current_user_id,
+                destinatario_id=other_user_id,
+                postinviato=postinviato  # Include post ID if present
+            )
+            db.session.add(new_message)
+            db.session.commit()
+            return redirect(url_for('chat', other_user_id=other_user_id))
+
+    # Fetch user details for the chat partner
+    user = db.session.query(Users).get(other_user_id)
+    if not user:
+        abort(404)  # User not found, handle accordingly
+
+    # Fetch all users to pass to the template for username resolution
+    all_users = db.session.query(Users).all()
+    users = {u.id_utente: u for u in all_users}
+
+    # Fetch all posts to pass to the template for post resolution
+    all_posts = db.session.query(Post).all()
+    posts = {p.id: p for p in all_posts}
+
+    return render_template('chat.html', messages=messages, user=user, users=users, posts=posts, other_user_id=other_user_id)
+
 
 @app.route('/send_message/<int:other_user_id>', methods=['POST'])
 def send_message(other_user_id):
@@ -998,7 +1129,9 @@ def send_message(other_user_id):
     return redirect(url_for('chat', user_id=other_user_id))
 
 
+#------------------------------- Annunci ---------------------------------#
 
+## crea il post
 
 def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio):
     """
@@ -1038,6 +1171,7 @@ def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, 
         db.session.rollback()
         return str(e)
 
+## pubblica il post
 
 @app.route('/pubblica_annuncio', methods=['GET', 'POST'])
 def pubblica_annuncio():
@@ -1062,6 +1196,9 @@ def pubblica_annuncio():
 
 from sqlalchemy.orm import joinedload
 
+
+
+
 def recupera_annunci_utente(current_user_id):
     now = datetime.now()
     
@@ -1082,6 +1219,46 @@ def recupera_annunci_utente(current_user_id):
     
     return annunci
 
+## aggiungi commenti
+
+@app.route('/annuncio/<int:annuncio_id>/comment', methods=['POST'])
+def add_comment_annuncio(annuncio_id):
+    # Recupera l'annuncio con l'ID fornito
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    
+    # Recupera il contenuto del commento dal modulo
+    content = request.form.get('content')
+    
+    # Verifica se il contenuto del commento è vuoto
+    if not content:
+        flash('Il commento non può essere vuoto.', 'warning')
+        return redirect(url_for('post_details', annuncio_id=annuncio_id))
+    
+    # Recupera l'ID dell'utente loggato
+    user_id = current_user.id
+    
+    # Crea una nuova istanza di AnnunciComments
+    new_comment = AnnunciComments(annuncio_id=annuncio_id, utente_id=user_id, content=content)
+    
+    # Aggiungi il nuovo commento al database e committi
+    db.session.add(new_comment)
+    db.session.commit()
+    
+    # Reindirizza alla pagina dei dettagli dell'annuncio
+    return redirect(url_for('recupera_statistiche_annuncio', annuncio_id=annuncio_id))
+
+
+
+def recupera_statistiche_annuncio(annuncio_id):
+    num_clicks = db.session.query(AnnunciClicks).filter_by(annuncio_id=annuncio_id).count()
+    num_comments = db.session.query(AnnunciComments).filter_by(annuncio_id=annuncio_id).count()
+    num_likes = db.session.query(AnnunciLikes).filter_by(annuncio_id=annuncio_id).count()
+    
+    return {
+        'clicks': num_clicks,
+        'comments': num_comments,
+        'likes': num_likes
+    }
 
 
 """
@@ -1101,43 +1278,6 @@ def recupera_annunci_utente(current_user_id):
 
 """
 
-@app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
-def chat(other_user_id):
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
-
-    current_user_id = current_user.id_utente
-
-    # Fetch all messages between the current user and the specified user
-    messages = db.session.query(Messaggi).filter(
-        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == other_user_id)) |
-        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == current_user_id))
-    ).order_by(Messaggi.creato_at.asc()).all()
-
-    if request.method == 'POST':
-        # Handle new message
-        message_text = request.form.get('message')
-        if message_text:
-            new_message = Messaggi(
-                testo=message_text,
-                mittente_id=current_user_id,
-                destinatario_id=other_user_id,
-                postinviato=None  # Assuming this is optional or not used in this context
-            )
-            db.session.add(new_message)
-            db.session.commit()
-            return redirect(url_for('chat', other_user_id=other_user_id))
-
-    # Fetch user details for the chat partner
-    user = db.session.query(Users).get(other_user_id)
-    if not user:
-        abort(404)  # User not found, handle accordingly
-
-    # Fetch all users to pass to the template for username resolution
-    all_users = db.session.query(Users).all()
-    users = {u.id_utente: u for u in all_users}
-
-    return render_template('chat.html', messages=messages, user=user, users=users)
 
 
 # Inizializzazione dell'applicazione

@@ -5,9 +5,11 @@
 {% block content %}
 <style>
     .container {
-        max-width: 1200px; /* Regola la larghezza massima come preferisci */
-        margin: 0 auto; /* Centra il contenitore */
-        padding: 40px;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+        padding-left: 60px; /* Aggiunto padding sinistro */
+        padding-right: 60px; /* Aggiunto padding destro */
     }
     #search {
         margin-bottom: 0;
@@ -28,7 +30,7 @@
         right: 0;
         z-index: 1000;
         background: #fff;
-        display: none; /* Nascondi di default */
+        display: none;
     }
     .autocomplete-suggestion {
         padding: 10px;
@@ -46,12 +48,22 @@
     .post-media {
         max-width: 100%;
         height: auto;
+        margin-top: 10px;
+        border-radius: 5px;
     }
     .card {
         margin-bottom: 1rem;
+        max-width: 600px; /* Imposta la larghezza massima dei post */
+        margin-left: auto; /* Centra i post */
+        margin-right: auto; /* Centra i post */
     }
     .annuncio-item {
-        margin-bottom: 1rem;
+        max-width: 600px; /* Imposta la larghezza massima degli annunci */
+    }
+    .post-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
     }
 </style>
 
@@ -63,31 +75,62 @@
             <div id="suggestions" class="autocomplete-suggestions"></div>
         </div>
     </form>
-
-    <h2>I tuoi feed</h2>
+    <hr>
+    <h2>Annunci a te dedicati</h2>
+    {% if annunci %}
+        <div id="annunciCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for annuncio in annunci %}
+                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                        <div class="card annuncio-item">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ annuncio.tipo_post }}</h5>
+                                <p class="card-text">Sesso Target: {{ annuncio.sesso_target }}</p>
+                                <p class="card-text">Età Target: {{ annuncio.eta_target }}</p>
+                                <p class="card-text">Interesse Target: {{ annuncio.interesse.nome if annuncio.interesse else 'Non specificato' }}</p>
+                                <p class="card-text">Data di scadenza: {{ annuncio.fine.strftime('%d-%m-%Y %H:%M') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#annunciCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#annunciCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    {% else %}
+        <p>Non ci sono annunci a te dedicati.</p>
+    {% endif %}
+    <hr>
+    <h2>Post dei tuoi amici</h2>
     {% if posts %}
         <ul class="list-unstyled">
             {% for post in posts %}
                 <li class="post-item mb-3">
                     <div class="card">
                         <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
-                        <div class="card-body d-flex align-items-center">
-                            <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti[post.utente].username }}">
-                            <div>
+                        <div class="card-body">
+                            <div class="post-header">
+                                <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti[post.utente].username }}">
                                 <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
-                                <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
-                                
-                                {% if post.media %}
-                                    {% if post.tipo_post == 'immagini' %}
-                                        <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
-                                    {% elif post.tipo_post == 'video' %}
-                                        <video class="post-media" controls>
-                                            <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4" alt="video del post">
-                                            Il tuo browser non supporta il tag video.
-                                        </video>
-                                    {% endif %}
-                                {% endif %}
                             </div>
+                            <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di più</a>{% endif %}</p>
+                            
+                            {% if post.media %}
+                                {% if post.tipo_post == 'immagini' %}
+                                    <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
+                                {% elif post.tipo_post == 'video' %}
+                                    <video class="post-media" controls>
+                                        <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                                        Il tuo browser non supporta il tag video.
+                                    </video>
+                                {% endif %}
+                            {% endif %}
                         </div>
                         <div class="card-footer text-muted">
                             {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
@@ -99,29 +142,7 @@
     {% else %}
         <p>Non ci sono post da visualizzare.</p>
     {% endif %}
-
-    <h2>Annunci a te dedicati</h2>
-    {% if annunci %}
-        <ul class="list-unstyled">
-            {% for annuncio in annunci %}
-                <li class="annuncio-item mb-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ annuncio.tipo_post }}</h5>
-                            <p class="card-text">Sesso Target: {{ annuncio.sesso_target }}</p>
-                            <p class="card-text">Età Target: {{ annuncio.eta_target }}</p>
-                            <p class="card-text">Interesse Target: {{ annuncio.interesse.nome if annuncio.interesse else 'Non specificato' }}</p>
-                            <p class="card-text">Data di scadenza: {{ annuncio.fine.strftime('%d-%m-%Y %H:%M') }}</p>
-                        </div>
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>Non ci sono annunci a te dedicati.</p>
-    {% endif %}
 </div>
-
 <script>
     document.getElementById('search-input').addEventListener('input', function() {
         const query = this.value;
@@ -138,7 +159,7 @@
             .then(data => {
                 if (data.suggestions.length > 0) {
                     suggestionsBox.innerHTML = data.suggestions
-                        .filter(user => user.id !== {{ current_user.id_utente }}) // Escludi l'utente corrente
+                        .filter(user => user.id !== {{ current_user.id_utente }})
                         .map(user => 
                             `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
                         ).join('');
@@ -166,4 +187,3 @@
     });
 </script>
 {% endblock %}
-

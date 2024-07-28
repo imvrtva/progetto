@@ -45,7 +45,7 @@
             </select>
         </div>
         <div class="form-group">
-            <label for="eta">Età:</label>
+            <label for="eta">EtÃ :</label>
             <input type="number" class="form-control" id="eta" name="eta" value="{{ user.eta }}" required>
         </div>
         <div class="form-group">
@@ -58,6 +58,16 @@
         <div class="form-group">
             <label for="immagine">Foto Profilo:</label>
             <input type="file" class="form-control" id="immagine" name="immagine">
+        </div>
+        <br>
+        <div class="form-group">
+            <label>Interessi:</label><br>
+            {% for interesse in interessi %}
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="interesse_{{ interesse.id_interessi }}" name="interessi" value="{{ interesse.id_interessi }}" {% if interesse.id_interessi in user_interessi %}checked{% endif %}>
+                    <label class="form-check-label" for="interesse_{{ interesse.id_interessi }}">{{ interesse.nome }}</label>
+                </div>
+            {% endfor %}
         </div>
         <button type="submit" class="btn btn-primary">Aggiorna Profilo</button>
     </form>

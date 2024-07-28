@@ -97,26 +97,24 @@
         .delete-button, .share-button {
             position: absolute;
             top: 10px;
-            background-color: #4da0ff;
-            color: white;
+            background-color: transparent;
+            color: #4da0ff;
             border: none;
-            border-radius: 4px;
-            font-size: 14px;
+            font-size: 20px;
             cursor: pointer;
-            padding: 5px 10px;
-            transition: background-color 0.3s, transform 0.3s;
-            z-index: 10;
         }
         .share-button {
-            right: 90px;
-            background-color: #28a745;
+            right: 50px;
+            color: #28a745;
         }
         .share-button:hover {
-            background-color: #218838;
+            color: #218838;
+        }
+        .delete-button {
+            right: 10px;
         }
         .delete-button:hover {
-            background-color: #0036cc;
-            transform: scale(1.05);
+            color: #0036cc;
         }
         .delete-button:focus, .share-button:focus {
             outline: none;
@@ -128,25 +126,111 @@
             cursor: pointer;
             font-size: 14px;
             position: absolute;
-            right: 300px;
+            right: 30px;
             bottom: 0;
             transition: color 0.3s;
         }
         .comment .delete-comment:hover {
             color: darkred;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 100px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 10px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .share-list {
+            list-style: none;
+            padding: 0;
+        }
+        .share-list li {
+            margin-bottom: 15px;
+        }
+        .share-list form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .share-list textarea {
+            width: 90%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            resize: none;
+        }
+        .share-list button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 90%;
+            font-size: 16px;
+        }
+        .share-list button:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
+    <!-- Share Modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('shareModal').style.display='none'">&times;</span>
+            <h3>Condividi con...</h3>
+            <ul class="share-list">
+                {% for friend in friends %}
+                    <li>
+                        <form method="post" action="{{ url_for('share_post', post_id=post.id, friend_id=friend.id_utente) }}">
+                            <textarea name="additional_text" rows="2" placeholder="Aggiungi un testo..." required></textarea>
+                            <button type="submit">{{ friend.username }}</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
     <div class="post-container">
-        <!-- Pulsante di Eliminazione del Post -->
         {% if post.utente == current_user.id_utente %}
             <form method="POST" action="{{ url_for('elimina_post', post_id=post.id) }}" style="display:inline;">
-                <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo post?');">Elimina</button>
+                <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo post?');">
+                    <i class="fa fa-trash"></i>
+                </button>
             </form>
         {% endif %}
-        
-        <!-- Data di Creazione -->
+        <button class="share-button" onclick="document.getElementById('shareModal').style.display='block'">
+            <i class="fa fa-share-alt"></i>
+        </button>
+
         <div class="card-footer text-muted text-center border-0 bg-white">
             pubblicato il: {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
         </div>
@@ -157,10 +241,10 @@
         <div class="post-content">
             <p>{{ post.testo }}</p>
             {% if post.tipo_post == 'immagini' %}
-                <img src="{{ url_for('static', filename='contenuti/' ~ post.media) }}" alt="Post Image" style="width: 100%; border-radius: 8px;">
+                <img src="{{ url_for('static', filename=post.media) }}" alt="Post Image" style="width: 100%; border-radius: 8px;">
             {% elif post.tipo_post == 'video' %}
                 <video controls style="width: 100%; border-radius: 8px;">
-                    <source src="{{ url_for('static', filename='contenuti/' ~ post.media) }}" type="video/mp4">
+                    <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
             {% endif %}
@@ -198,12 +282,31 @@
         {% endfor %}
     </div>
     <div class="comment-form">
-        <form action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
+        <form action="{{ url_for('post_details', post_id=post.id) }}" method="post">
             <textarea name="content" rows="3" placeholder="Aggiungi un commento..." required></textarea>
             <br>
             <button type="submit">Commenta</button>
         </form>
     </div>
-{% endblock %}
+
+    <script>
+        var modal = document.getElementById("shareModal");
+        var span = document.getElementsByClassName("close")[0];
+
+        function openModal() {
+            modal.style.display = "block";
+        }
+
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
 </body>
 </html>
+{% endblock %}
