@@ -160,7 +160,13 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Call the function on page load to ensure the view starts at the bottom
-    window.onload = scrollToBottom;
-</script>
+        // Call the function on page load to ensure the view starts at the bottom
+        window.onload = scrollToBottom;
+
+        // Call the function whenever a new message is added
+        // You might need to trigger this on the event of receiving a new message
+        // For example, if using a real-time system, you might call this in the message update handler
+    </script>
+</body>
+</html>
 {% endblock %}

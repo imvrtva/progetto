@@ -19,7 +19,7 @@ import pytz
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -984,44 +984,7 @@ def conversations():
 
     ## chat tra amici
 
-@app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
-def chat(other_user_id):
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
-
-    current_user_id = current_user.id_utente
-
-    # Fetch all messages between the current user and the specified user
-    messages = db.session.query(Messaggi).filter(
-        ((Messaggi.mittente_id == current_user_id) & (Messaggi.destinatario_id == other_user_id)) |
-        ((Messaggi.mittente_id == other_user_id) & (Messaggi.destinatario_id == current_user_id))
-    ).order_by(Messaggi.creato_at.asc()).all()
-
-    if request.method == 'POST':
-        # Handle new message
-        message_text = request.form.get('message')
-        if message_text:
-            new_message = Messaggi(
-                testo=message_text,
-                mittente_id=current_user_id,
-                destinatario_id=other_user_id,
-                postinviato=None  # Assuming this is optional or not used in this context
-            )
-            db.session.add(new_message)
-            db.session.commit()
-            return redirect(url_for('chat', other_user_id=other_user_id))
-
-    # Fetch user details for the chat partner
-    user = db.session.query(Users).get(other_user_id)
-    if not user:
-        abort(404)  # User not found, handle accordingly
-
-    # Fetch all users to pass to the template for username resolution
-    all_users = db.session.query(Users).all()
-    users = {user.id_utente: user for user in all_users}
-
-    return render_template('chat.html', messages=messages, user=user, users=users)
-
+    
     ## non ricordo cosa faccia :)
 
 @app.route('/send_message/<int:other_user_id>', methods=['POST'])
@@ -1137,6 +1100,7 @@ def recupera_annunci_utente(current_user_id):
     return annunci
 
 """
+
 @app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
 def chat(other_user_id):
     if not current_user.is_authenticated:

@@ -13,13 +13,16 @@
             <h2 class="font-weight-bold mb-0">{{ amico.nome }} {{ amico.cognome }}</h2>
             <p class="text-muted mb-2">@{{ amico.username }}</p>
             <p class="bio mt-3">{{ amico.bio or "Nessuna biografia" }}</p>
-            <form method="post">
+            <form method="post" class="d-flex">
                 {% if seguendo %}
-                    <button type="submit" class="btn btn-danger">Non seguire piú</button>
+                    <button type="submit" class="btn btn-danger" style="margin-right: 30px;">Non seguire più</button>
+                    <!-- Pulsante per avviare una chat -->
+                    <a href="{{ url_for('chat', other_user_id=amico.id_utente) }}" class="btn btn-success">Inizia Chat</a>
                 {% else %}
                     <button type="submit" class="btn btn-primary">Segui</button>
                 {% endif %}
             </form>
+            
         </div>
     </div>
     <hr>

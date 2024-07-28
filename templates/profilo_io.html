@@ -3,31 +3,40 @@
 {% block title %}Profilo Utente{% endblock %}
 
 {% block content %}
-<div class="container mt-1">
+<div class="container mt-1"> <!-- Ridotto il margine superiore -->
     <!-- Profilo Header -->
     <div class="profile-header d-flex align-items-center mb-4">
-        <img src="{{ amico.immagine if amico.immagine else url_for('static', filename='default_profile.png') }}" 
+        <img src="{{ url_for('serve_file', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" 
              alt="Foto Profilo" class="profile-img rounded-circle mx-5" 
-             style="width: 150px; height: 150px; object-fit: cover;">
+             style="width: 120px; height: 120px; object-fit: cover;">
         <div class="profile-info ml-4">
-            <h2 class="font-weight-bold mb-0">{{ amico.nome }} {{ amico.cognome }}</h2>
-            <p class="text-muted mb-2">@{{ amico.username }}</p>
-            <p class="bio mt-3">{{ amico.bio or "Nessuna biografia" }}</p>
-            <form method="post" class="d-flex">
-                {% if seguendo %}
-                    <button type="submit" class="btn btn-danger" style="margin-right: 30px;">Non seguire piÃ¹</button>
-                    <!-- Pulsante per avviare una chat -->
-                    <a href="{{ url_for('chat', other_user_id=amico.id_utente) }}" class="btn btn-success">Inizia Chat</a>
-                {% else %}
-                    <button type="submit" class="btn btn-primary">Segui</button>
-                {% endif %}
+            <h2 class="font-weight-bold mb-0">{{ user.nome }} {{ user.cognome }}</h2>
+            <p class="text-muted mb-2">@{{ user.username }}</p>
+            <div class="profile-stats d-flex justify-content-between">
+                <div class="text-center">
+                    <a href="{{ url_for('followers_list', user_id=user.id_utente) }}" class="text-dark text-decoration-none">
+                        <span class="d-block font-weight-bold">{{ user.follower_count }}</span>
+                        Follower
+                    </a>
+                </div>
+                <div class="text-center mx-5">
+                    <a href="{{ url_for('following_list', user_id=user.id_utente) }}" class="text-dark text-decoration-none">
+                        <span class="d-block font-weight-bold">{{ user.following_count }}</span>
+                        Seguiti
+                    </a>
+                </div>
+                <div class="text-center">
+                    <span class="d-block font-weight-bold">{{ user.post_count }}</span>
+                    Post
+                </div>
+            </div>
+            <p class="bio mt-3">{{ user.bio or "Nessuna biografia" }}</p>
+            <form method="POST" action="{{ url_for('modifica_profilo') }}">
+                <button type="submit" class="btn btn-primary">Modifica Profilo</button>
             </form>
-            
         </div>
     </div>
     <hr>
-    
-    {% if seguendo %}
     <!-- Post Pubblicati -->
     <h3 class="mt-4 mb-3 font-weight-bold">Post Pubblicati</h3>
     <div class="row">
@@ -37,18 +46,12 @@
                 <a href="{{ url_for('post_details', post_id=post.id) }}" class="text-decoration-none">
                     <div class="card border-0 shadow-sm h-100">
                         {% if post.media %}
-                            {% if post.tipo_post == 'immagini' %}
-                                <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
-                            {% elif post.tipo_post == 'video' %}
-                                <video controls class="card-img-top">
-                                    <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
-                                    Your browser does not support the video tag.
-                                </video>
-                            {% endif %}
+                            <img src="{{ url_for('static', filename=post.media) }}" alt="Post" class="card-img-top">
                         {% endif %}
                         <div class="card-body">
                             <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
                         </div>
+
                     </div>
                 </a>
             </div>
@@ -57,9 +60,5 @@
             <p class="text-center">Non ci sono post pubblicati.</p>
         {% endif %}
     </div>
-    {% else %}
-    <!-- Messaggio se non si segue l'utente -->
-    <p class="text-center mt-4">Segui l'utente per vedere i suoi post.</p>
-    {% endif %}
 </div>
 {% endblock %}
