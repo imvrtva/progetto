@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -121,20 +121,22 @@
 
     <nav class="down-bar">
         <ul>
-           
             {% if current_user.ruolo.value == 'pubblicitari' %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}"><i class="fas fa-briefcase"></i></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('insight') }}"><i class="fas fa-chart-bar"></i></a> <!-- Insight Button -->
                 </li>
             {% else %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('utente', id_utente=current_user.id_utente) }}"><i class="fas fa-home"></i></a>
                 </li>
             {% endif %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('scegli_post', username=current_user.username) }}"><i class="fas fa-plus-square"></i></a>
-                </li>
-             <li class="nav-item">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('scegli_post', username=current_user.username) }}"><i class="fas fa-plus-square"></i></a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('profilo') }}"><i class="fas fa-user"></i></a>
             </li>
         </ul>

@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 import sqlite3
 from datetime import datetime, timezone, timedelta
 import pytz
+import humanize
 
 #------------------------ accesso server -------------------------#
 
@@ -223,6 +224,7 @@ class Annunci(db.Model, UserMixin):
     interesse_target = Column(Integer, ForeignKey('interessi.id_interessi'), nullable=False)
     inizio = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
     fine = Column(Date, default=func.current_timestamp())
+    data_creazione = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
     def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, fine):
         self.advertiser_id = advertiser_id
@@ -473,54 +475,100 @@ def interessi():
 @app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def utente(id_utente):
+    # Recupera l'utente con l'ID passato come parametro
     user = Users.query.filter_by(id_utente=id_utente).first()
+
+    # Verifica se l'utente esiste
     if not user:
         flash("Utente non trovato", category="alert alert-danger")
         return redirect(url_for('log'))
 
+    # Recupera l'ID dell'utente corrente
     current_user_id = current_user.id_utente
+
+    # Recupera gli utenti seguiti dall'utente corrente
     seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+
+    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
     seguiti_ids.append(current_user_id)
-    
+
+    # Recupera i post degli utenti seguiti
     posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
+
+    # Recupera gli utenti seguiti in una sola query
     utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
 
+    # Recupera gli interessi dell'utente corrente
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
+
+    # Recupera gli annunci che corrispondono agli interessi e ai target dell'utente
     now = datetime.now()
     annunci = Annunci.query.filter(
-        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),
-        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),
-        (Annunci.eta_target <= user.eta),
+        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Corrispondenza degli interessi
+        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
+        (Annunci.eta_target <= user.eta),  # Età dell'utente deve essere minore o uguale a quella target dell'annuncio
         Annunci.fine > now
     ).order_by(Annunci.fine.desc()).all()
 
+    # Funzione per ottenere il tempo passato
+    def get_time_ago(timestamp):
+        if timestamp is None:
+            return "Data non disponibile"
+        return humanize.naturaltime(now - timestamp)
+
+    # Aggiungi il tempo relativo ai post e agli annunci
+    for post in posts:
+        post.time_ago = get_time_ago(post.data_creazione)
+
+    for annuncio in annunci:
+        annuncio.time_ago = get_time_ago(annuncio.data_creazione)
+
     return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci)
+    
+    ## home page inserzionista
 
 @app.route('/homepage/inserzionista/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def inserzionista(id_utente):
+    # Recupera l'utente inserzionista
     user = Users.query.filter_by(id_utente=id_utente).first()
+    
+    # Recupera l'ID dell'utente corrente (chi sta visualizzando la pagina)
     current_user_id = current_user.id_utente
+    
+    # Recupera gli utenti seguiti dall'utente corrente
     seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+    
+    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
     seguiti_ids.append(current_user_id)
-
+    
+    # Recupera i post degli utenti seguiti
     posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
+    
+    # Recupera gli utenti seguiti in una sola query
     utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
-
+    
+    # Recupera gli interessi dell'utente corrente
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
+    
+    # Recupera gli annunci creati dall'utente corrente
     now = datetime.now()
     annunci = Annunci.query.filter(
         Annunci.advertiser_id == current_user_id,
         Annunci.fine > now
     ).order_by(Annunci.inizio.desc()).all()
-
+    
+    # Recupera gli utenti che hanno creato gli annunci
+    inserzionisti = {annuncio.id: Users.query.filter_by(id_utente=annuncio.advertiser_id).first() for annuncio in annunci}
+    
+    # Recupera statistiche per ogni annuncio
     statistiche_annunci = {
         annuncio.id: recupera_statistiche_annuncio(annuncio.id) for annuncio in annunci
     }
-
-    return render_template('home_inserzionista.html', user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci)
+    
+    return render_template('home_inserzionista.html', user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, inserzionisti=inserzionisti)
 
 
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
@@ -873,6 +921,7 @@ def notifiche():
 
     return render_template('notifiche.html', all_notifications=all_notifications)
 
+
     ## funzione per l'orario di arrivo delle notifiche
 
 def time_since(post_time):
@@ -1101,45 +1150,45 @@ def send_message(other_user_id):
 
 ## crea il post
 
-def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio):
-    """
-    Crea un annuncio specifico basato sugli interessi di un utente.
-    """
-    
+def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio, testo=None, media=None, contenuto=None):
     # Trova l'ID dell'interesse basato sul nome
     interesse = db.session.query(Interessi).filter_by(nome=nome_interesse).first()
     if not interesse:
         return "Interesse non trovato."
+    
     valid_sesso_targets = ['maschio', 'femmina', 'tutti']
     if sesso_target not in valid_sesso_targets:
         return f"Sesso target non valido. Deve essere uno di: {', '.join(valid_sesso_targets)}."
+    
     try:
-        # Calcola la data di scadenza
         fine = datetime.now() + timedelta(days=durata_annuncio)
         
-        # Crea il nuovo annuncio
         annuncio = Annunci(
-            advertiser_id=user_id,  # Assicurati che il campo sia corretto
+            advertiser_id=user_id,
             tipo_post=tipo_post,
             sesso_target=sesso_target,
             eta_target=eta_target,
             interesse_target=interesse.id_interessi,
-            fine=fine
+            fine=fine,
+            testo=testo,
+            media=media,
+            contenuto=contenuto
         )
-        
-        # Aggiungi l'annuncio al database
+
         db.session.add(annuncio)
         db.session.commit()
+
         return annuncio
-        
+
     except IntegrityError:
         db.session.rollback()
         return "Errore di integrità del database."
     except Exception as e:
         db.session.rollback()
         return str(e)
+    
 
-## pubblica il post
+
 
 @app.route('/pubblica_annuncio', methods=['GET', 'POST'])
 def pubblica_annuncio():
@@ -1150,23 +1199,61 @@ def pubblica_annuncio():
         eta_target = int(request.form['eta_target'])
         interessi = request.form.getlist('interessi')
         durata_annuncio = int(request.form['durata_annuncio'])
-        
-        # Join interests into a single string (or handle as needed by crea_annuncio)
-        nome_interesse = ','.join(interessi)
-        
-        # Chiama la funzione per creare l'annuncio
-        risultato = crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio)
-        
-        if isinstance(risultato, str):  # Se il risultato è un messaggio di errore
-            interests = Interessi.query.all()
-            return render_template('pubblica_annuncio.html', message=risultato, interests=interests)
+
+        if tipo_post == 'immagini':
+            media = request.files.get('media')  # Gestisce il file dell'immagine o video
+            testo = request.form.get('testo')
+        elif tipo_post == 'testo':
+            media = None
+            testo = request.form.get('testo')
         else:
+            return "Tipo di post non valido."
+
+        # Assicurati che la directory 'contenuti' esista
+        contenuti_path = os.path.join(current_app.root_path, 'contenuti')
+        if not os.path.exists(contenuti_path):
+            os.makedirs(contenuti_path)
+
+        media_path = None
+        if media and media.filename != '':
+            # Costruisci il percorso completo del file
+            media_path = os.path.join(contenuti_path, media.filename)
+            # Salva il file nella directory 'contenuti'
+            media.save(media_path)
+            media_path = os.path.join('contenuti', media.filename)  # Percorso da salvare nel DB
+
+        try:
+            fine = datetime.now() + timedelta(days=durata_annuncio)
+
+            # Crea il nuovo annuncio
+            annuncio = Annunci(
+                advertiser_id=user_id,
+                tipo_post=tipo_post,
+                sesso_target=sesso_target,
+                eta_target=eta_target,
+                interesse_target=None,  # Imposta None o un valore appropriato se non usato
+                fine=fine,
+                testo=testo,
+                media=media_path,  # Percorso del file salvato
+                contenuto=testo if tipo_post == 'testo' else None  # Passa il testo se è un annuncio di tipo 'testo'
+            )
+            
+            # Aggiungi l'annuncio al database
+            db.session.add(annuncio)
+            db.session.commit()
+            
             # Reindirizza alla home dell'inserzionista con un messaggio di successo
             return redirect(url_for('inserzionista', id_utente=user_id))
+        
+        except IntegrityError:
+            db.session.rollback()
+            return "Errore di integrità del database."
+        except Exception as e:
+            db.session.rollback()
+            return f"Errore: {str(e)}"
     
     interests = Interessi.query.all()
     return render_template('pubblica_annuncio.html', message=None, interests=interests)
-
 
 def recupera_annunci_utente(current_user_id):
     now = datetime.now()
@@ -1229,6 +1316,11 @@ def recupera_statistiche_annuncio(annuncio_id):
         'likes': num_likes
     }
 
+@app.route('/insight')
+@login_required
+def insight():
+    
+    return render_template('insight.html')
 
 
 

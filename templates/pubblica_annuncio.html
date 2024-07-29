@@ -1,157 +1,78 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pubblica Annuncio</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            background: white;
-            padding: 2rem;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            width: 100%;
-            max-width: 600px;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        form div {
-            margin-bottom: 1rem;
-        }
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #555;
-        }
-        input, select, button {
-            width: 100%;
-            padding: 0.75rem;
-            margin-top: 0.25rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        select[multiple] {
-            height: auto;
-        }
-        button {
-            background-color: #5cb85c;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #4cae4c;
-        }
-        a {
-            display: block;
-            text-align: center;
-            margin-top: 1rem;
-            color: #337ab7;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        p.message {
-            text-align: center;
-            color: red;
-        }
-        #interessi-suggestions div {
-    padding: 0.5rem;
-    cursor: pointer;
-}
-#interessi-suggestions div:hover {
-    background-color: #f0f0f0;
-}
-
-
-    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Pubblica un Nuovo Annuncio</h1>
-        
-        <!-- Mostra un messaggio di conferma o errore -->
-        {% if message %}
-            <p class="message">{{ message }}</p>
-        {% endif %}
-        
-        <!-- Form per la creazione dell'annuncio -->
-        <form action="{{ url_for('pubblica_annuncio') }}" method="post" enctype="multipart/form-data">
-            <div>
-                <label for="tipo_post">Tipo di Post:</label>
-                <select id="tipo_post" name="tipo_post" required>
+    <div class="container mt-4">
+        <h1>Pubblica un Annuncio</h1>
+        <form action="{{ url_for('pubblica_annuncio') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="tipo_post">Tipo di post:</label>
+                <select class="form-control" id="tipo_post" name="tipo_post" required>
                     <option value="immagini">Immagini</option>
-                    <option value="video">Video</option>
                     <option value="testo">Testo</option>
                 </select>
             </div>
-            <div>
-                <label for="sesso_target">Sesso Target:</label>
-                <select id="sesso_target" name="sesso_target" required>
+
+            <div class="form-group">
+                <label for="sesso_target">Sesso target:</label>
+                <select class="form-control" id="sesso_target" name="sesso_target" required>
                     <option value="maschio">Maschio</option>
                     <option value="femmina">Femmina</option>
                     <option value="tutti">Tutti</option>
                 </select>
             </div>
-            <div>
-                <label for="eta_target">Età Target:</label>
-                <input type="number" id="eta_target" name="eta_target" min="0" required>
+
+            <div class="form-group">
+                <label for="eta_target">EtÃ  target:</label>
+                <input type="number" class="form-control" id="eta_target" name="eta_target" required>
             </div>
             <div>
                 <label for="interessi">Interessi:</label>
                 <input type="text" id="interessi" name="interessi" placeholder="Inizia a digitare...">
                 <div id="interessi-suggestions" style="display: none; border: 1px solid #ccc; background-color: #fff;"></div>
             </div>
-            
-            
-            
-            <div>
-                <label for="durata_annuncio">Durata Annuncio (giorni):</label>
-                <input type="number" id="durata_annuncio" name="durata_annuncio" min="1" required>
+
+            <div class="form-group">
+                <label for="durata_annuncio">Durata annuncio (giorni):</label>
+                <input type="number" class="form-control" id="durata_annuncio" name="durata_annuncio" required>
             </div>
-            <div>
-                <label for="immagine_annuncio">Carica Immagine (opzionale):</label>
-                <input type="file" id="immagine_annuncio" name="immagine_annuncio" accept="image/*">
+
+            <div class="form-group" id="media_div" style="display: none;">
+                <label for="media">Carica il file:</label>
+                <input type="file" class="form-control-file" id="media" name="media">
             </div>
-            <div>
-                <label for="video_annuncio">Carica Video (opzionale):</label>
-                <input type="file" id="video_annuncio" name="video_annuncio" accept="video/*">
+
+            <div class="form-group" id="testo_div" style="display: none;">
+                <label for="testo">Testo dell'annuncio:</label>
+                <textarea class="form-control" id="testo" name="testo" rows="4"></textarea>
             </div>
-            <div>
-                <button type="submit">Pubblica Annuncio</button>
-            </div>
+
+            <button type="submit" class="btn btn-primary">Pubblica</button>
+            <a href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}" class="btn btn-secondary">Torna alla Home</a>
         </form>
-        <script>
-            const interests = [{% for interesse in interests %} "{{ interesse.nome }}"{% if not loop.last %}, {% endif %}{% endfor %}];
-        
-            document.getElementById('interessi').addEventListener('input', function() {
-                const input = this.value.toLowerCase();
-                const suggestions = interests.filter(interest => interest.toLowerCase().includes(input));
-                const suggestionsDiv = document.getElementById('interessi-suggestions');
-        
-                suggestionsDiv.innerHTML = suggestions.map(interest => `<div>${interest}</div>`).join('');
-                suggestionsDiv.style.display = suggestions.length ? 'block' : 'none';
-            });
-        
-            document.getElementById('interessi-suggestions').addEventListener('click', function(e) {
-                if (e.target.tagName === 'DIV') {
-                    document.getElementById('interessi').value = e.target.innerText;
-                    this.style.display = 'none';
-                }
-            });
-        </script>
-        
+    </div>
+
+    <script>
+        document.getElementById('tipo_post').addEventListener('change', function() {
+            var tipoPost = this.value;
+            if (tipoPost === 'immagini') {
+                document.getElementById('media_div').style.display = 'block';
+                document.getElementById('testo_div').style.display = 'none';
+            } else if (tipoPost === 'testo') {
+                document.getElementById('media_div').style.display = 'none';
+                document.getElementById('testo_div').style.display = 'block';
+            }
+        });
+    </script>
+
+    <!-- Bootstrap JS, Popper.js, and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+</body>
+</html>

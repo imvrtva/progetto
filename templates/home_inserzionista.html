@@ -8,18 +8,21 @@
         max-width: 1100px;
         margin: 0 auto;
         padding: 20px;
-        padding-left: 60px; /* Padding sinistro */
-        padding-right: 60px; /* Padding destro */
+        padding-left: 30px; /* Ridotto il padding sinistro */
+        padding-right: 30px; /* Ridotto il padding destro */
     }
+
     #search {
-        margin-bottom: 0;
+        margin-bottom: 20px;
         padding-bottom: 0;
         position: relative;
     }
+
     #posts {
-        margin-top: 0;
+        margin-top: 20px;
         padding-top: 0;
     }
+
     .autocomplete-suggestions {
         border: 1px solid #ddd;
         max-height: 200px;
@@ -31,41 +34,111 @@
         z-index: 1000;
         background: #fff;
         display: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
+
     .autocomplete-suggestion {
         padding: 10px;
         cursor: pointer;
     }
+
     .autocomplete-suggestion:hover {
         background-color: #eee;
     }
+
     .profile-img {
-        width: 40px;
-        height: 40px;
+        width: 40px; /* Ridotto il width */
+        height: 40px; /* Ridotto l'altezza */
         border-radius: 50%;
         margin-right: 10px;
     }
+
     .post-media {
-        max-width: 100%;
+        width: 100%;
         height: auto;
-        margin-top: 10px;
-        border-radius: 5px;
-    }
-    .card {
-        margin-bottom: 1rem;
-        max-width: 600px; /* Imposta la larghezza massima dei post */
-        margin-left: auto; /* Centra i post */
-        margin-right: auto; /* Centra i post */
-    }
-    .annuncio-item {
-        max-width: 600px; /* Imposta la larghezza massima degli annunci */
-    }
-    .post-header {
-        display: flex;
-        align-items: center;
+        border-radius: 10px;
         margin-bottom: 10px;
     }
+
+    .card {
+        margin-bottom: 20px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+    }
+
+    .card-body {
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .card-text {
+        margin: 0;
+        font-size: 14px;
+        color: #333;
+    }
+
+    .card-footer {
+        background-color: #f1f1f1;
+        border-top: 1px solid #ddd;
+        padding: 10px;
+        font-size: 12px;
+        color: #777;
+    }
+
+    .annuncio-item {
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        margin-bottom: 20px;
+    }
+
+    .annuncio-header {
+        padding: 10px; /* Ridotto il padding */
+        border-bottom: 1px solid #ddd;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+    }
+
+    .annuncio-header img {
+        width: 30px; /* Ridotto il width */
+        height: 30px; /* Ridotto l'altezza */
+        border-radius: 50%;
+        margin-right: 10px; /* Ridotto il margine */
+    }
+
+    .annuncio-header h5 {
+        margin: 0;
+        font-size: 14px; /* Ridotto il font-size */
+        font-weight: 600;
+    }
+
+    .carousel-item video {
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+    }
+
+    .carousel-control-prev-icon,
+    .carousel-control-next-icon {
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+    }
 </style>
+
 
 <div class="container mt-4">
     <h2>Ricerca Persone</h2>
@@ -82,15 +155,21 @@
             <div class="carousel-inner">
                 {% for annuncio in annunci %}
                     <div class="carousel-item {% if loop.first %}active{% endif %}">
-                        <div class="card annuncio-item">
+                        <div class="annuncio-item">
+                            <div class="annuncio-header">
+                                <img src="{{ url_for('static', filename=inserzionisti[annuncio.id].immagine) if inserzionisti[annuncio.id].immagine else url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ inserzionisti[annuncio.id].username }}">
+                                <h5 class="card-title">@{{ inserzionisti[annuncio.id].username }} </h5>
+                            </div>
                             <div class="card-body">
-                                <h5 class="card-title">Annuncio ID: {{ annuncio.id }}</h5>
-                                <p class="card-text"><strong>Tipo Post:</strong> {{ annuncio.tipo_post }}</p>
-                                <p class="card-text"><strong>Target Sesso:</strong> {{ annuncio.sesso_target }}</p>
-                                <p class="card-text"><strong>Target Età:</strong> {{ annuncio.eta_target }}</p>
-                                <p class="card-text"><strong>Nome Interesse:</strong> {{ annuncio.interesse_target }}</p>
-                                <p class="card-text"><strong>Inizio:</strong> {{ annuncio.inizio.strftime('%d-%m-%Y %H:%M') }}</p>
-                                <p class="card-text"><strong>Fine:</strong> {{ annuncio.fine.strftime('%d-%m-%Y') }}</p>
+                                {% if annuncio.tipo_post == 'immagini' %}
+                                    <img src="{{ url_for('static', filename=annuncio.media) }}" class="post-media" alt="Immagine dell'annuncio">
+                                {% elif annuncio.tipo_post == 'video' %}
+                                    <video class="post-media" controls>
+                                        <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
+                                        Il tuo browser non supporta il tag video.
+                                    </video>
+                                {% endif %}
+                                <p class="card-text">{{ annuncio.testo }}</p>
                             </div>
                         </div>
                     </div>
@@ -116,25 +195,24 @@
                 <li class="post-item mb-3">
                     <div class="card">
                         <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
-                        <div class="card-body d-flex align-items-center">
-                            <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti_dict[post.utente] }}">
-                            <div>
-                                <h5 class="card-title">@{{ utenti_dict[post.utente] }}</h5>
-                                <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
-                                {% if post.media %}
-                                    {% if post.tipo_post == 'immagini' %}
-                                        <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
-                                    {% elif post.tipo_post == 'video' %}
-                                        <video class="post-media" controls>
-                                            <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
-                                            Il tuo browser non supporta il tag video.
-                                        </video>
+                        <div class="card-body">
+                            <div class="d-flex align-items-start">
+                                <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti_dict[post.utente] }}">
+                                <div class="ms-2">
+                                    <h5 class="card-title">@{{ utenti_dict[post.utente] }}</h5>
+                                    <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                                    {% if post.media %}
+                                        {% if post.tipo_post == 'immagini' %}
+                                            <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
+                                        {% elif post.tipo_post == 'video' %}
+                                            <video class="post-media" controls>
+                                                <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                                                Il tuo browser non supporta il tag video.
+                                            </video>
+                                        {% endif %}
                                     {% endif %}
-                                {% endif %}
+                                </div>
                             </div>
-                        </div>
-                        <div class="card-footer text-muted">
-                            {{ post.data_creazione.strftime('%d-%m-%Y %H:%M') }}
                         </div>
                     </div>
                 </li>
