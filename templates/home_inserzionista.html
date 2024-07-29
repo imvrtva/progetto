@@ -5,16 +5,66 @@
 {% block content %}
 <style>
     .container {
-        max-width: 1200px;
+        max-width: 1100px;
         margin: 0 auto;
-        padding: 40px;
+        padding: 20px;
+        padding-left: 60px; /* Padding sinistro */
+        padding-right: 60px; /* Padding destro */
     }
     #search {
         margin-bottom: 0;
         padding-bottom: 0;
         position: relative;
     }
-    /* Additional styles omitted for brevity */
+    #posts {
+        margin-top: 0;
+        padding-top: 0;
+    }
+    .autocomplete-suggestions {
+        border: 1px solid #ddd;
+        max-height: 200px;
+        overflow-y: auto;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: #fff;
+        display: none;
+    }
+    .autocomplete-suggestion {
+        padding: 10px;
+        cursor: pointer;
+    }
+    .autocomplete-suggestion:hover {
+        background-color: #eee;
+    }
+    .profile-img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+    .post-media {
+        max-width: 100%;
+        height: auto;
+        margin-top: 10px;
+        border-radius: 5px;
+    }
+    .card {
+        margin-bottom: 1rem;
+        max-width: 600px; /* Imposta la larghezza massima dei post */
+        margin-left: auto; /* Centra i post */
+        margin-right: auto; /* Centra i post */
+    }
+    .annuncio-item {
+        max-width: 600px; /* Imposta la larghezza massima degli annunci */
+    }
+    .post-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
 </style>
 
 <div class="container mt-4">
@@ -25,8 +75,41 @@
             <div id="suggestions" class="autocomplete-suggestions"></div>
         </div>
     </form>
-
-    <h2>I tuoi feed</h2>
+    <hr>
+    <h2>I tuoi annunci</h2>
+    {% if annunci %}
+        <div id="annunciCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for annuncio in annunci %}
+                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                        <div class="card annuncio-item">
+                            <div class="card-body">
+                                <h5 class="card-title">Annuncio ID: {{ annuncio.id }}</h5>
+                                <p class="card-text"><strong>Tipo Post:</strong> {{ annuncio.tipo_post }}</p>
+                                <p class="card-text"><strong>Target Sesso:</strong> {{ annuncio.sesso_target }}</p>
+                                <p class="card-text"><strong>Target Età:</strong> {{ annuncio.eta_target }}</p>
+                                <p class="card-text"><strong>Nome Interesse:</strong> {{ annuncio.interesse_target }}</p>
+                                <p class="card-text"><strong>Inizio:</strong> {{ annuncio.inizio.strftime('%d-%m-%Y %H:%M') }}</p>
+                                <p class="card-text"><strong>Fine:</strong> {{ annuncio.fine.strftime('%d-%m-%Y') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#annunciCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#annunciCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    {% else %}
+        <p>Non ci sono annunci da visualizzare.</p>
+    {% endif %}
+    <hr>
+    <h2>I tuoi post</h2>
     {% if posts %}
         <ul class="list-unstyled">
             {% for post in posts %}
@@ -59,30 +142,6 @@
         </ul>
     {% else %}
         <p>Non ci sono post da visualizzare.</p>
-    {% endif %}
-
-    <h2>I tuoi annunci</h2>
-    {% if annunci %}
-        <ul class="list-unstyled">
-            {% for annuncio in annunci %}
-                <li class="post-item mb-3">
-                    <div class="card">
-                        
-                        <div class="card-body">
-                            <h5 class="card-title">Annuncio ID: {{ annuncio.id }}</h5>
-                            <p class="card-text"><strong>Tipo Post:</strong> {{ annuncio.tipo_post }}</p>
-                            <p class="card-text"><strong>Target Sesso:</strong> {{ annuncio.sesso_target }}</p>
-                            <p class="card-text"><strong>Target Età:</strong> {{ annuncio.eta_target }}</p>
-                            <p class="card-text"><strong>Nome Interesse:</strong> {{ annuncio.interesse_target }}</p>
-                            <p class="card-text"><strong>Inizio:</strong> {{ annuncio.inizio.strftime('%d-%m-%Y %H:%M') }}</p>
-                            <p class="card-text"><strong>Fine:</strong> {{ annuncio.fine.strftime('%d-%m-%Y') }}</p>
-                        </div>
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>Non ci sono annunci da visualizzare.</p>
     {% endif %}
 </div>
 

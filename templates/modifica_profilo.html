@@ -51,8 +51,9 @@
         <div class="form-group">
             <label for="ruolo">Ruolo:</label>
             <select class="form-control" id="ruolo" name="ruolo">
-                <option value="utente" {% if user.ruolo == 'utente' %}selected{% endif %}>Utente</option>
-                <option value="pubblicitari" {% if user.ruolo == 'pubblicitari' %}selected{% endif %}>Inserzionista</option>
+                <!-- Default selection based on user's role -->
+                <option value="utente" {% if user.ruolo.value == 'utente' %}selected{% endif %}>Utente</option>
+                <option value="pubblicitari" {% if user.ruolo.value == 'pubblicitari' %}selected{% endif %}>Inserzionista</option>
             </select>
         </div>
         <div class="form-group">

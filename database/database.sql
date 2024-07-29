@@ -73,7 +73,9 @@ CREATE TABLE annunci (
     eta_target INTEGER,
     interesse_target INTEGER REFERENCES interessi(id_interessi),
     inizio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fine DATE
+    fine DATE,
+    media VARCHAR(255),
+    testo VARCHAR(255)
 );
 
 CREATE TABLE annunci_likes (

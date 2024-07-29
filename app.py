@@ -473,86 +473,54 @@ def interessi():
 @app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def utente(id_utente):
-    # Recupera l'utente con l'ID passato come parametro
     user = Users.query.filter_by(id_utente=id_utente).first()
-
-    # Verifica se l'utente esiste
     if not user:
         flash("Utente non trovato", category="alert alert-danger")
         return redirect(url_for('log'))
 
-    # Recupera l'ID dell'utente corrente
     current_user_id = current_user.id_utente
-
-    # Recupera gli utenti seguiti dall'utente corrente
     seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
-
-    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
     seguiti_ids.append(current_user_id)
-
-    # Recupera i post degli utenti seguiti
+    
     posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
-
-    # Recupera gli utenti seguiti in una sola query
     utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
 
-# Recupera gli interessi dell'utente corrente
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
-
-    # Recupera gli annunci che corrispondono agli interessi e ai target dell'utente
     now = datetime.now()
     annunci = Annunci.query.filter(
-        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Corrispondenza degli interessi
-        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
-        (Annunci.eta_target <= user.eta),  # Età dell'utente deve essere minore o uguale a quella target dell'annuncio
+        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),
+        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),
+        (Annunci.eta_target <= user.eta),
         Annunci.fine > now
     ).order_by(Annunci.fine.desc()).all()
 
     return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci)
 
-    
-    ## home page inserzionista
-
 @app.route('/homepage/inserzionista/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def inserzionista(id_utente):
-    # Recupera l'utente inserzionista
     user = Users.query.filter_by(id_utente=id_utente).first()
-    
-    # Recupera l'ID dell'utente corrente (chi sta visualizzando la pagina)
     current_user_id = current_user.id_utente
-    
-    # Recupera gli utenti seguiti dall'utente corrente
     seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
-    
-    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
     seguiti_ids.append(current_user_id)
-    
-    # Recupera i post degli utenti seguiti
+
     posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
-    
-    # Recupera gli utenti seguiti in una sola query
     utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
-    
-    # Recupera gli interessi dell'utente corrente
+
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
-    # Recupera gli annunci creati dall'utente corrente
     now = datetime.now()
     annunci = Annunci.query.filter(
         Annunci.advertiser_id == current_user_id,
         Annunci.fine > now
     ).order_by(Annunci.inizio.desc()).all()
-    
-    
-    # Recupera statistiche per ogni annuncio
+
     statistiche_annunci = {
         annuncio.id: recupera_statistiche_annuncio(annuncio.id) for annuncio in annunci
     }
-    
-    
-    return render_template('home_inserzionista.html',user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci)
+
+    return render_template('home_inserzionista.html', user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci)
 
 
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
