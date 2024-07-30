@@ -21,7 +21,7 @@ from flask_socketio import SocketIO
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -263,11 +263,11 @@ class AnnunciComments(db.Model):
     content = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, annuncio_id, utente_id, content ,created_at ):
+    def __init__(self, annuncio_id, utente_id, content ):
         self.annuncio_id = annuncio_id
         self.utente_id = utente_id
         self.content = content
-        self.created_at = created_at
+
     
 class AnnunciLikes(db.Model, UserMixin):
     __tablename__ = 'annunci_likes'
@@ -333,7 +333,28 @@ def check_email(email):
     regex_email = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Z|a-z]{2,}\b'
     return not re.fullmatch(regex_email, email)
 
+## statistiche annuncio
 
+def get_annuncio_statistics(annuncio_id):
+    today = datetime.today().date()
+    yesterday = today - timedelta(days=1)
+
+    stats_today = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == today).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == today).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == today).count(),
+    }
+    
+    stats_yesterday = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == yesterday).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == yesterday).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == yesterday).count(),
+    }
+
+    return {
+        'today': stats_today,
+        'yesterday': stats_yesterday,
+    }
 #------------------------ rotte sito internet -------------------------#
 
     #------------------------ log in e log out, registrazione -------------------------#
@@ -527,7 +548,7 @@ def utente(id_utente):
         post.time_ago = get_time_ago(post.data_creazione)
 
     for annuncio in annunci:
-        annuncio.time_ago = get_time_ago(annuncio.data_creazione)
+        annuncio.time_ago = get_time_ago(annuncio.inizio)
 
     return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci)
     
@@ -1295,47 +1316,24 @@ def insight():
 def annuncio_details(annuncio_id):
     annuncio = Annunci.query.get_or_404(annuncio_id)
     annuncio_user = Users.query.get(annuncio.advertiser_id)
-
+    
     # Fetch statistics
     likes = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).all()
     comments = AnnunciComments.query.filter_by(annuncio_id=annuncio_id).all()
-    clicks = AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).all()
 
     # Prepare data for the charts
-    likes_data = [{'timestamp': like.clicked_at.isoformat(), 'count': 1} for like in likes]
-    comments_data = [{'timestamp': comment.created_at.isoformat(), 'count': 1} for comment in comments]
-    clicks_data = [{'timestamp': click.clicked_at.isoformat(), 'count': 1} for click in clicks]
+    likes_count = len(likes)
+    is_liked = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=current_user.id_utente).first() is not None
 
     return render_template(
         'annuncio_details.html',
         annuncio=annuncio,
-        likes_data=likes_data,
-        comments_data=comments_data,
-        clicks_data=clicks_data,
-        annuncio_user=annuncio_user
+        annuncio_user=annuncio_user,
+        likes_count=likes_count,
+        liked=is_liked,
+        comments=comments,
+        comment_users={comment.id: Users.query.get(comment.utente_id) for comment in comments}
     )
-
-def get_annuncio_statistics(annuncio_id):
-    today = datetime.today().date()
-    yesterday = today - timedelta(days=1)
-
-    stats_today = {
-        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == today).count(),
-        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == today).count(),
-        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == today).count(),
-    }
-    
-    stats_yesterday = {
-        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == yesterday).count(),
-        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == yesterday).count(),
-        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == yesterday).count(),
-    }
-
-    return {
-        'today': stats_today,
-        'yesterday': stats_yesterday,
-    }
-
 
 
 @app.route('/insight')
@@ -1445,6 +1443,63 @@ def get_followers_per_month(session, user_id):
             daily_counts[day - 1] = count
     
     return daily_counts
+
+@app.route('/toggle_like_annuncio/<int:annuncio_id>', methods=['POST'])
+def toggle_like_annuncio(annuncio_id):
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    user = current_user  # Assumendo che stai usando Flask-Login
+    like = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=user.id_utente).first()
+    if like:
+        # Se l'utente ha già messo like, lo rimuove
+        db.session.delete(like)
+        db.session.commit()
+    else:
+        # Altrimenti, aggiunge il like
+        like = AnnunciLikes(annuncio_id=annuncio_id, utente_id=user.id_utente)
+        db.session.add(like)
+        db.session.commit()
+    
+    return redirect(url_for('annuncio_details', annuncio_id=annuncio_id))
+
+@app.route('/add_comment_annunci/<int:annuncio_id>', methods=['POST'])
+@login_required
+def add_comment_annunci(annuncio_id):
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    content = request.form['content']
+    
+    new_comment = AnnunciComments(
+        annuncio_id=annuncio_id,
+        utente_id=current_user.id_utente,
+        content=content
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+    
+    return redirect(url_for('annuncio_details', annuncio_id=annuncio_id))
+
+@app.route('/delete_comment_annunci/<int:comment_id>', methods=['POST'])
+@login_required
+def delete_comment_annunci(comment_id):
+    # Recupera il commento dalla tabella AnnunciComments
+    comment = AnnunciComments.query.get(comment_id)
+    if comment is None:
+        flash('Commento non trovato.', 'danger')
+        return redirect(url_for('annuncio_details', annuncio_id=1))  # Modifica qui per usare un ID di annuncio valido o un valore predefinito
+
+    # Verifica se l'utente corrente è autorizzato ad eliminare il commento
+    if comment.utente_id != current_user.id_utente and \
+       Annunci.query.get(comment.annuncio_id).advertiser_id != current_user.id_utente:
+        flash('Non hai il permesso per eliminare questo commento.', 'danger')
+        return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
+
+    # Elimina il commento e conferma la transazione
+    db.session.delete(comment)
+    db.session.commit()
+    flash('Commento eliminato con successo.', 'success')
+    return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
+
+
+
 
 # Inizializzazione dell'applicazione
 if __name__ == '__main__':

@@ -163,17 +163,17 @@
             {% set likes_today = stats_today.likes_count %}
             {% set likes_yesterday = stats_yesterday.likes_count if stats_yesterday else 0 %}
             {% set likes_diff = likes_today - likes_yesterday %}
-            {% set likes_diff_str = '+' + likes_diff if likes_diff > 0 else ('-' + abs(likes_diff) if likes_diff < 0 else '+0') %}
+            {% set likes_diff_str = ('+' ~ likes_diff) if likes_diff > 0 else ('-' ~ abs(likes_diff) if likes_diff < 0 else '+0') %}
             
             {% set comments_today = stats_today.comments_count %}
             {% set comments_yesterday = stats_yesterday.comments_count if stats_yesterday else 0 %}
             {% set comments_diff = comments_today - comments_yesterday %}
-            {% set comments_diff_str = '+' + comments_diff if comments_diff > 0 else ('-' + abs(comments_diff) if comments_diff < 0 else '+0') %}
+            {% set comments_diff_str = ('+' ~ comments_diff) if comments_diff > 0 else ('-' ~ abs(comments_diff) if comments_diff < 0 else '+0') %}
             
             {% set clicks_today = stats_today.clicks_count %}
             {% set clicks_yesterday = stats_yesterday.clicks_count if stats_yesterday else 0 %}
             {% set clicks_diff = clicks_today - clicks_yesterday %}
-            {% set clicks_diff_str = '+' + clicks_diff if clicks_diff > 0 else ('-' + abs(clicks_diff) if clicks_diff < 0 else '+0') %}
+            {% set clicks_diff_str = ('+' ~ clicks_diff) if clicks_diff > 0 else ('-' ~ abs(clicks_diff) if clicks_diff < 0 else '+0') %}
             
             <div class="col-md-4">
                 <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" class="text-decoration-none text-dark">

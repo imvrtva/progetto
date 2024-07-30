@@ -220,7 +220,6 @@
     </div>
 
     <div class="post-container">
-
         <div class="card-footer text-muted text-center border-0 bg-white">
             Pubblicato il: {{ annuncio.inizio.strftime('%d-%m-%Y %H:%M') }}
         </div>
@@ -241,34 +240,48 @@
             {% endif %}
         </div>
         <div class="post-footer">
-            
+            <form method="post" action="{{ url_for('toggle_like_annuncio', annuncio_id=annuncio.id) }}" id="like-form">
+                <button type="submit" class="like-button" id="like-button">
+                    <i class="fa {% if liked %}fa-heart liked{% else %}fa-heart-o{% endif %}" id="like-icon"></i>
+                    <span class="like-count" id="like-count">{{ likes_count }}</span>
+                </button>
+            </form>
         </div>
     </div>
     <hr>
+
+   
+    
+
+    <!-- Sezione Commenti -->
     <div class="comments-section">
         <h3>Commenti</h3>
         {% for comment in comments %}
             <div class="comment">
-                {% if comment.id in comment_users %}
-                    <img src="{{ comment_users[comment.id].url_photo() }}" alt="{{ comment_users[comment.id].username }}">
+                {% if comment_users[comment.utente_id] %}
+                    <img src="{{ comment_users[comment.utente_id].url_photo() }}" alt="{{ comment_users[comment.utente_id].username }}">
                     <div class="comment-content">
-                        <strong>@{{ comment_users[comment.id].username }}:</strong> {{ comment.content }}
+                        <strong>@{{ comment_users[comment.utente_id].username }}:</strong> {{ comment.content }}
                     </div>
-                    {% if comment.user_id == current_user.id_utente or annuncio.advertiser_id == current_user.id_utente %}
-                        <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" style="display: inline;">
-                            <button type="submit" class="delete-comment" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
-                        </form>
+                    {% if comment.utente_id == current_user.id_utente or annuncio.advertiser_id == current_user.id_utente %}
+                    <form action="{{ url_for('delete_comment_annunci', comment_id=comment.id) }}" method="post" style="display: inline;">
+                        <button type="submit" class="delete-comment" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
+                    </form>
+                    
                     {% endif %}
                 {% else %}
                     <p>Commento di utente non trovato.</p>
                 {% endif %}
             </div>
-        {% else %}
-            <p>Nessun commento ancora.</p>
         {% endfor %}
     </div>
-    
-
+ <!-- Form per aggiungere commenti -->
+    <div class="comment-form">
+        <form method="post" action="{{ url_for('add_comment_annunci', annuncio_id=annuncio.id) }}">
+            <textarea name="content" rows="3" placeholder="Scrivi un commento..." required></textarea>
+            <button type="submit">Commenta</button>
+        </form>
+    </div>
     <script>
         var modal = document.getElementById("shareModal");
         var span = document.getElementsByClassName("close")[0];
