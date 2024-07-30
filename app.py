@@ -14,13 +14,14 @@ import sqlite3
 from datetime import datetime, timezone, timedelta
 import pytz
 import humanize
+from flask_socketio import SocketIO
 
 #------------------------ accesso server -------------------------#
 
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -30,6 +31,7 @@ login_manager = LoginManager()
 login_manager.login_view = 'login.log'
 login_manager.init_app(app)
 bcrypt = Bcrypt(app)
+socketio = SocketIO(app)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1281,13 +1283,13 @@ def recupera_statistiche_annuncio(annuncio_id):
     
     return {'today': today_stats, 'yesterday': yesterday_stats}
 
-
+"""
 @app.route('/insight')
 @login_required
 def insight():
     
     return render_template('insight.html')
-
+"""
 
 @app.route('/annuncio_details/<int:annuncio_id>')
 def annuncio_details(annuncio_id):
@@ -1334,6 +1336,120 @@ def get_annuncio_statistics(annuncio_id):
         'yesterday': stats_yesterday,
     }
 
+
+
+@app.route('/insight')
+@login_required
+def insight():
+    likes = get_likes_per_month(db.session, current_user.id_utente)
+    comments = get_comments_per_month(db.session, current_user.id_utente)
+    followers = get_followers_per_month(db.session, current_user.id_utente)
+    
+    return render_template('insight.html', likes=likes, comments=comments, followers=followers)
+
+# Emit an update when a like is added
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+    # Emit initial data to the client
+    emit_initial_data()
+
+@socketio.on('new_like')
+def handle_new_like(data):
+    # Update the database and fetch the updated data
+    likes = get_likes_per_month(db.session, current_user.id_utente)
+    comments = get_comments_per_month(db.session, current_user.id_utente)
+    followers = get_followers_per_month(db.session, current_user.id_utente)
+    
+    # Emit updated data to the client
+    socketio.emit('update', {
+        'likes': likes,
+        'comments': comments,
+        'followers': followers
+    })
+
+def emit_initial_data():
+    # This function emits initial data to the client when they connect
+    likes = get_likes_per_month(db.session, current_user.id_utente)
+    comments = get_comments_per_month(db.session, current_user.id_utente)
+    followers = get_followers_per_month(db.session, current_user.id_utente)
+    
+    socketio.emit('update', {
+        'likes': likes,
+        'comments': comments,
+        'followers': followers
+    })
+
+def get_likes_per_month(session, user_id):
+    start_date = datetime.today().replace(day=1)
+    end_date = (start_date + timedelta(days=32)).replace(day=1)
+    
+    results = session.query(
+        func.date_trunc('day', PostLikes.clicked_at).label('date'),
+        func.count().label('count')
+    ).filter(
+        PostLikes.utente_id == user_id,
+        PostLikes.clicked_at >= start_date,
+        PostLikes.clicked_at < end_date
+    ).group_by('date').order_by('date').all()
+    
+    # Initialize list for daily counts
+    daily_counts = [0] * (end_date.day)
+    for date, count in results:
+        day = date.day
+        if 1 <= day <= len(daily_counts):
+            daily_counts[day - 1] = count
+    
+    return daily_counts
+
+def get_comments_per_month(session, user_id):
+    start_date = datetime.today().replace(day=1)
+    end_date = (start_date + timedelta(days=32)).replace(day=1)
+    
+    results = session.query(
+        func.date_trunc('day', PostComments.created_at).label('date'),
+        func.count().label('count')
+    ).filter(
+        PostComments.utente_id == user_id,
+        PostComments.created_at >= start_date,
+        PostComments.created_at < end_date
+    ).group_by('date').order_by('date').all()
+    
+    # Initialize list for daily counts
+    daily_counts = [0] * (end_date.day)
+    for date, count in results:
+        day = date.day
+        if 1 <= day <= len(daily_counts):
+            daily_counts[day - 1] = count
+    
+    return daily_counts
+
+def get_followers_per_month(session, user_id):
+    start_date = datetime.today().replace(day=1)
+    end_date = (start_date + timedelta(days=32)).replace(day=1)
+    
+    results = session.query(
+        func.date_trunc('day', Amici.seguito_at).label('date'),
+        func.count().label('count')
+    ).filter(
+        Amici.user_amico == user_id,
+        Amici.seguito_at >= start_date,
+        Amici.seguito_at < end_date
+    ).group_by('date').order_by('date').all()
+    
+    # Initialize list for daily counts
+    daily_counts = [0] * (end_date.day)
+    for date, count in results:
+        day = date.day
+        if 1 <= day <= len(daily_counts):
+            daily_counts[day - 1] = count
+    
+    return daily_counts
+
 # Inizializzazione dell'applicazione
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
+
+
 if __name__ == '__main__':
     app.run(debug=True)
