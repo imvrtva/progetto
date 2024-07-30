@@ -1,38 +1,152 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <!-- Include CSS file -->
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
-    <title>Pubblica Annuncio</title>
-</head>
-<body>
-    <form method="POST" enctype="multipart/form-data">
-        <label for="tipo_post">Tipo di Post:</label>
-        <select id="tipo_post" name="tipo_post">
+{% extends "base.html" %}
+
+{% block title %}Pubblica Annuncio{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 text-center">Pubblica un Annuncio</h1>
+<form action="/pubblica_annuncio" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+    <div class="mb-4">
+        <label for="tipo_post" class="form-label">Tipo Post:</label>
+        <select id="tipo_post" name="tipo_post" class="form-control" required>
             <option value="immagini">Immagini</option>
+            <option value="video">Video</option>
             <option value="testo">Testo</option>
         </select>
-        <label for="sesso_target">Sesso Target:</label>
-        <select id="sesso_target" name="sesso_target">
+        <div class="invalid-feedback">
+            Seleziona il tipo di post.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="sesso_target" class="form-label">Sesso Target:</label>
+        <select id="sesso_target" name="sesso_target" class="form-control" required>
             <option value="maschio">Maschio</option>
             <option value="femmina">Femmina</option>
-            <option value="tutti">Tutti</option>
         </select>
-        <label for="eta_target">Età Target:</label>
-        <input type="number" id="eta_target" name="eta_target">
-        <label for="nome_interesse">Nome Interesse:</label>
-        <input type="text" id="nome_interesse" name="nome_interesse">
-        <label for="durata_annuncio">Durata Annuncio (giorni):</label>
-        <input type="number" id="durata_annuncio" name="durata_annuncio">
-        <label for="titolo">Titolo:</label>
-        <input type="text" id="titolo" name="titolo">
-        <label for="didascalia">Didascalia:</label>
-        <textarea id="didascalia" name="didascalia"></textarea>
-        <label for="testo">Testo:</label>
-        <textarea id="testo" name="testo"></textarea>
-        <label for="immagine">Media:</label>
-        <input type="file" id="immagine" name="immagine">
-        <button type="submit">Pubblica Annuncio</button>
-    </form>
-</body>
-</html>
+        <div class="invalid-feedback">
+            Seleziona il sesso target.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="eta_target" class="form-label">Età Target:</label>
+        <input type="number" id="eta_target" name="eta_target" class="form-control" required>
+        <div class="invalid-feedback">
+            Inserisci l'età target.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="interesse_target" class="form-label">Interesse Target:</label>
+        <select id="interesse_target" name="interesse_target" class="form-control" required>
+            {% for interesse in interessi %}
+                <option value="{{ interesse.id_interessi }}">{{ interesse.nome }}</option>
+            {% endfor %}
+        </select>
+        <div class="invalid-feedback">
+            Seleziona l'interesse target.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="inizio" class="form-label">Inizio:</label>
+        <input type="datetime-local" id="inizio" name="inizio" class="form-control" required>
+        <div class="invalid-feedback">
+            Inserisci la data e l'orario di inizio.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="fine" class="form-label">Fine:</label>
+        <input type="date" id="fine" name="fine" class="form-control" required>
+        <div class="invalid-feedback">
+            Inserisci la data di fine.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="testo" class="form-label">Testo:</label>
+        <textarea id="testo" name="testo" class="form-control" rows="5" placeholder="Scrivi il testo..." required></textarea>
+        <div class="invalid-feedback">
+            Inserisci il testo dell'annuncio.
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="titolo" class="form-label">Titolo:</label>
+        <input type="text" id="titolo" name="titolo" class="form-control">
+    </div>
+
+    <div class="mb-4">
+        <label for="media" class="form-label">Media (carica un file):</label>
+        <input type="file" id="media" name="media" class="form-control" required>
+        <div class="invalid-feedback">
+            Carica un file media.
+        </div>
+    </div>
+
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-upload"></i> Pubblica Annuncio
+        </button>
+    </div>
+</form>
+
+<style>
+    form {
+        max-width: 800px;
+        margin: auto;
+        background-color: #fff;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+        color: #333;
+        margin-bottom: 20px;
+    }
+    .form-label {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        padding: 10px;
+        font-size: 1rem;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+        padding: 10px 20px;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-primary:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+    .btn-primary i {
+        margin-right: 10px;
+    }
+</style>
+
+<script>
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                }, false)
+            })
+    })()
+</script>
+{% endblock %}

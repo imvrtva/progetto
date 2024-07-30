@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Dettagli dell'Annuncio{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dettagli dell'Annuncio</title>
+    <!-- Include Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .post-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            position: relative;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post-header img {
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+        }
+        .post-content {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .post-footer {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .like-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+        }
+        .fa-heart, .fa-heart-o {
+            font-size: 24px;
+        }
+        .liked {
+            color: red;
+        }
+        .like-count {
+            margin-left: 8px;
+            font-size: 18px;
+        }
+        .comments-section {
+            margin-top: 20px;
+        }
+        .comment {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            position: relative;
+            padding-right: 60px;
+        }
+        .comment img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .comment-content {
+            flex: 1;
+        }
+        .comment-form textarea {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .comment-form button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .comment-form button:hover {
+            background-color: #0056b3;
+        }
+        .delete-button, .share-button {
+            position: absolute;
+            top: 10px;
+            background-color: transparent;
+            color: #4da0ff;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .share-button {
+            right: 50px;
+            color: #28a745;
+        }
+        .share-button:hover {
+            color: #218838;
+        }
+        .delete-button {
+            right: 10px;
+        }
+        .delete-button:hover {
+            color: #0036cc;
+        }
+        .delete-button:focus, .share-button:focus {
+            outline: none;
+        }
+        .comment .delete-comment {
+            color: red;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            position: absolute;
+            right: 30px;
+            bottom: 0;
+            transition: color 0.3s;
+        }
+        .comment .delete-comment:hover {
+            color: darkred;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 100px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 10px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .share-list {
+            list-style: none;
+            padding: 0;
+        }
+        .share-list li {
+            margin-bottom: 15px;
+        }
+        .share-list form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .share-list textarea {
+            width: 90%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            resize: none;
+        }
+        .share-list button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 90%;
+            font-size: 16px;
+        }
+        .share-list button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <!-- Share Modal -->
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('shareModal').style.display='none'">&times;</span>
+            <h3>Condividi con...</h3>
+            <ul class="share-list">
+                {% for friend in friends %}
+                    <li>
+                        <form method="post" action="{{ url_for('share_annuncio', annuncio_id=annuncio.id, friend_id=friend.id_utente) }}">
+                            <textarea name="additional_text" rows="2" placeholder="Aggiungi un testo..." required></textarea>
+                            <button type="submit">{{ friend.username }}</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="post-container">
+
+        <div class="card-footer text-muted text-center border-0 bg-white">
+            Pubblicato il: {{ annuncio.inizio.strftime('%d-%m-%Y %H:%M') }}
+        </div>
+        <div class="post-header">
+            <img src="{{ annuncio_user.url_photo() }}" alt="Foto profilo di {{ annuncio_user.username }}">
+            <p>@{{ annuncio_user.username }}</p>
+        </div>
+        <div class="post-content">
+            <h4>{{ annuncio.titolo }}</h4>
+            <p>{{ annuncio.testo }}</p>
+            {% if annuncio.tipo_post == 'immagini' %}
+                <img src="{{ url_for('static', filename=annuncio.media) }}" alt="Annuncio Image" style="width: 100%; border-radius: 8px;">
+            {% elif annuncio.tipo_post == 'video' %}
+                <video controls style="width: 100%; border-radius: 8px;">
+                    <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            {% endif %}
+        </div>
+        <div class="post-footer">
+            
+        </div>
+    </div>
+    <hr>
+    <div class="comments-section">
+        <h3>Commenti</h3>
+        {% for comment in comments %}
+            <div class="comment">
+                {% if comment.id in comment_users %}
+                    <img src="{{ comment_users[comment.id].url_photo() }}" alt="{{ comment_users[comment.id].username }}">
+                    <div class="comment-content">
+                        <strong>@{{ comment_users[comment.id].username }}:</strong> {{ comment.content }}
+                    </div>
+                    {% if comment.user_id == current_user.id_utente or annuncio.advertiser_id == current_user.id_utente %}
+                        <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" style="display: inline;">
+                            <button type="submit" class="delete-comment" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <p>Commento di utente non trovato.</p>
+                {% endif %}
+            </div>
+        {% else %}
+            <p>Nessun commento ancora.</p>
+        {% endfor %}
+    </div>
+    
+
+    <script>
+        var modal = document.getElementById("shareModal");
+        var span = document.getElementsByClassName("close")[0];
+
+        function openModal() {
+            modal.style.display = "block";
+        }
+
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
+{% endblock %}

@@ -223,30 +223,23 @@ class Annunci(db.Model, UserMixin):
     media = Column(String(255), nullable=True)
     eta_target = Column(Integer, unique=False, nullable=False)
     interesse_target = Column(Integer, ForeignKey('interessi.id_interessi'), nullable=False)
-    
     inizio = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
     fine = Column(Date, default=func.current_timestamp())
-
     testo = Column(String(255), nullable=True)  # Questo Ã¨ corretto
-    titolo = Column(String(255), nullable=True)  # Nuovo campo per il titolo
-    didascalia = Column(Text, nullable=True)      # Nuovo campo per la didascalia
+    titolo = Column(String(255), nullable=True)  # Nuovo campo per il titolo 
 
-    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, inizio, fine, testo,  titolo, didascalia, media):
+    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, inizio, fine, testo,  titolo, media):
         self.advertiser_id = advertiser_id
         self.tipo_post = tipo_post
         self.sesso_target = sesso_target
         self.eta_target = eta_target
         self.interesse_target = interesse_target
-
         self.inizio= inizio
         self.fine = fine
         self.testo=testo
         self.titolo=titolo
-        self.didascalia=didascalia
         self.media = media
-
-        
-        
+      
 class AnnunciClicks(db.Model):
     __tablename__ = 'annunci_clicks'
 
@@ -258,7 +251,6 @@ class AnnunciClicks(db.Model):
         self.annuncio_id = annuncio_id
         self.utente_id = utente_id
         self.clicked_at = clicked_at 
-
 
 class AnnunciComments(db.Model):
     __tablename__ = 'annunci_comments'
@@ -274,9 +266,7 @@ class AnnunciComments(db.Model):
         self.utente_id = utente_id
         self.content = content
         self.created_at = created_at
-
-
-       
+    
 class AnnunciLikes(db.Model, UserMixin):
     __tablename__ = 'annunci_likes'
 
@@ -340,47 +330,6 @@ def check_password(password):
 def check_email(email):
     regex_email = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Z|a-z]{2,}\b'
     return not re.fullmatch(regex_email, email)
-
-def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio, testo=None, titolo=None, didascalia=None, media=None):
-    # Trova l'ID dell'interesse basato sul nome
-    interesse = db.session.query(Interessi).filter_by(nome=nome_interesse).first()
-    if not interesse:
-        return "Interesse non trovato."
-    
-    valid_sesso_targets = ['maschio', 'femmina', 'tutti']
-    if sesso_target not in valid_sesso_targets:
-        return f"Sesso target non valido. Deve essere uno di: {', '.join(valid_sesso_targets)}."
-    
-    try:
-        fine = datetime.now() + timedelta(days=durata_annuncio)
-        
-        annuncio = Annunci(
-            advertiser_id=user_id,
-            tipo_post=tipo_post,
-            sesso_target=sesso_target,
-            eta_target=eta_target,
-            interesse_target=interesse.id_interessi,
-            inizio=datetime.now(),
-            fine=fine,
-            testo=testo,
-            titolo=titolo,
-            didascalia=didascalia,
-            media=media
-        )
-
-        db.session.add(annuncio)
-        db.session.commit()
-
-        return annuncio
-
-    except IntegrityError:
-        db.session.rollback()
-        return "Errore di integrità del database."
-    except Exception as e:
-        db.session.rollback()
-        return str(e)
-
-
 
 
 #------------------------ rotte sito internet -------------------------#
@@ -617,12 +566,18 @@ def inserzionista(id_utente):
     # Recupera gli utenti che hanno creato gli annunci
     inserzionisti = {annuncio.id: Users.query.filter_by(id_utente=annuncio.advertiser_id).first() for annuncio in annunci}
     
+    # Debug: controlla se inserzionisti è correttamente definito
+    print("Inserzionisti:", inserzionisti)
+    
     # Recupera statistiche per ogni annuncio
     statistiche_annunci = {
         annuncio.id: recupera_statistiche_annuncio(annuncio.id) for annuncio in annunci
     }
+
+    today = datetime.today().date()
     
-    return render_template('home_inserzionista.html', user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, inserzionisti=inserzionisti)
+    return render_template('home_inserzionista.html', today=today, user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, inserzionisti=inserzionisti)
+
 
 
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
@@ -1199,66 +1154,63 @@ def send_message(other_user_id):
 @login_required
 def pubblica_annuncio():
     if request.method == 'POST':
-        user_id = current_user.id_utente
+        # Get the current time
+        now = datetime.utcnow()
+        
+        # Count active announcements for the current user
+        active_announcements = Annunci.query.filter(
+            Annunci.advertiser_id == current_user.id_utente,
+            Annunci.fine > now
+        ).count()
+
+        if active_announcements >= 3:
+            flash('Hai già pubblicato il massimo numero di annunci attivi. Attendi che uno scada prima di pubblicarne un altro.', 'warning')
+            return redirect(url_for('scegli_post'))
+
         tipo_post = request.form['tipo_post']
         sesso_target = request.form['sesso_target']
-        eta_target = int(request.form['eta_target'])
-        nome_interesse = request.form['nome_interesse']
-        durata_annuncio = int(request.form['durata_annuncio'])
-        titolo = request.form.get('titolo')
-        didascalia = request.form.get('didascalia')
-
-        if tipo_post == 'immagini':
-            immagine = request.files['immagine']
-            testo = None
-        elif tipo_post == 'testo':
-            immagine = None
-            testo = request.form.get('testo')
+        eta_target = request.form['eta_target']
+        interesse_target = request.form['interesse_target']
+        inizio = datetime.strptime(request.form['inizio'], '%Y-%m-%dT%H:%M')
+        fine = datetime.strptime(request.form['fine'], '%Y-%m-%d')
+        testo = request.form['testo']
+        titolo = request.form['titolo']
+        
+        # Handle file upload
+        file = request.files.get('media')
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
         else:
-            return "Tipo di post non valido."
-
-        # Assicurati che la directory 'contenuti' esista
-        # Ensure the 'contenuti' directory exists
-        contenuti_path = os.path.join(current_app.root_path, 'contenuti')
-        if not os.path.exists(contenuti_path):
-            os.makedirs(contenuti_path)
+            filename = None
         
-        # Construct the full file path
-        nome_file = os.path.join(contenuti_path, immagine.filename)
-        
-        # Save the image to the 'contenuti' directory
-        immagine.save(nome_file)
+        nuovo_annuncio = Annunci(
+            advertiser_id=current_user.id_utente,
+            tipo_post=tipo_post,
+            sesso_target=sesso_target,
+            eta_target=eta_target,
+            interesse_target=interesse_target,
+            inizio=inizio,
+            fine=fine,
+            testo=testo,
+            titolo=titolo,
+            media=filename
+        )
 
         try:
-            # Crea il nuovo annuncio
-            annuncio = crea_annuncio(
-                user_id=user_id,
-                tipo_post=tipo_post,
-                sesso_target=sesso_target,
-                eta_target=eta_target,
-                nome_interesse=nome_interesse,
-                durata_annuncio=durata_annuncio,
-                testo=testo,
-                titolo=titolo,
-                didascalia=didascalia,
-                media=immagine  # Aggiungi il nome del file come media nel database
-            )
-            
-            if isinstance(annuncio, str):
-                return f"Errore: {annuncio}"
-            
-            # Reindirizza alla home dell'inserzionista con un messaggio di successo
-            return redirect(url_for('inserzionista', id_utente=user_id))
-        
-        except IntegrityError:
-            db.session.rollback()
-            return "Errore di integrità del database."
+            db.session.add(nuovo_annuncio)
+            db.session.commit()
+            flash('Annuncio pubblicato con successo!', 'success')
+            return redirect(url_for('inserzionista'))
         except Exception as e:
             db.session.rollback()
-            return f"Errore: {str(e)}"
-    
-    interests = Interessi.query.all()
-    return render_template('pubblica_annuncio.html', message=None, interests=interests)
+            flash(f'Errore nella pubblicazione dell\'annuncio: {str(e)}', 'danger')
+
+    interessi = Interessi.query.all()
+    return render_template('pubblica_annuncio.html', interessi=interessi)
+
+
 ## annunci dedicati all'utente
 
 def recupera_annunci_utente(current_user_id):
@@ -1312,15 +1264,23 @@ def add_comment_annuncio(annuncio_id):
 ## statistiche degli annunci
 
 def recupera_statistiche_annuncio(annuncio_id):
-    num_clicks = db.session.query(AnnunciClicks).filter_by(annuncio_id=annuncio_id).count()
-    num_comments = db.session.query(AnnunciComments).filter_by(annuncio_id=annuncio_id).count()
-    num_likes = db.session.query(AnnunciLikes).filter_by(annuncio_id=annuncio_id).count()
+    today = datetime.today().date()
+    yesterday = today - timedelta(days=1)
     
-    return {
-        'clicks': num_clicks,
-        'comments': num_comments,
-        'likes': num_likes
+    today_stats = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciLikes.clicked_at >= today).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciComments.created_at >= today).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciClicks.clicked_at >= today).count(),
     }
+    
+    yesterday_stats = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciLikes.clicked_at >= yesterday, AnnunciLikes.clicked_at < today).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciComments.created_at >= yesterday, AnnunciComments.created_at < today).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciClicks.clicked_at >= yesterday, AnnunciClicks.clicked_at < today).count(),
+    }
+    
+    return {'today': today_stats, 'yesterday': yesterday_stats}
+
 
 @app.route('/insight')
 @login_required
@@ -1329,6 +1289,50 @@ def insight():
     return render_template('insight.html')
 
 
+@app.route('/annuncio_details/<int:annuncio_id>')
+def annuncio_details(annuncio_id):
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    annuncio_user = Users.query.get(annuncio.advertiser_id)
+
+    # Fetch statistics
+    likes = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).all()
+    comments = AnnunciComments.query.filter_by(annuncio_id=annuncio_id).all()
+    clicks = AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).all()
+
+    # Prepare data for the charts
+    likes_data = [{'timestamp': like.clicked_at.isoformat(), 'count': 1} for like in likes]
+    comments_data = [{'timestamp': comment.created_at.isoformat(), 'count': 1} for comment in comments]
+    clicks_data = [{'timestamp': click.clicked_at.isoformat(), 'count': 1} for click in clicks]
+
+    return render_template(
+        'annuncio_details.html',
+        annuncio=annuncio,
+        likes_data=likes_data,
+        comments_data=comments_data,
+        clicks_data=clicks_data,
+        annuncio_user=annuncio_user
+    )
+
+def get_annuncio_statistics(annuncio_id):
+    today = datetime.today().date()
+    yesterday = today - timedelta(days=1)
+
+    stats_today = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == today).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == today).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == today).count(),
+    }
+    
+    stats_yesterday = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == yesterday).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == yesterday).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == yesterday).count(),
+    }
+
+    return {
+        'today': stats_today,
+        'yesterday': stats_yesterday,
+    }
 
 # Inizializzazione dell'applicazione
 if __name__ == '__main__':

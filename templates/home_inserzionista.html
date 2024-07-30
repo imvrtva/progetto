@@ -8,8 +8,8 @@
         max-width: 1100px;
         margin: 0 auto;
         padding: 20px;
-        padding-left: 30px; /* Ridotto il padding sinistro */
-        padding-right: 30px; /* Ridotto il padding destro */
+        padding-left: 30px;
+        padding-right: 30px;
     }
 
     #search {
@@ -47,8 +47,8 @@
     }
 
     .profile-img {
-        width: 40px; /* Ridotto il width */
-        height: 40px; /* Ridotto l'altezza */
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
         margin-right: 10px;
     }
@@ -62,9 +62,6 @@
 
     .card {
         margin-bottom: 20px;
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
         border-radius: 10px;
         overflow: hidden;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -92,19 +89,23 @@
         color: #777;
     }
 
+    .annuncio-item img, .annuncio-item video {
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+    }
+
     .annuncio-item {
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
+        margin-bottom: 20px;
         border-radius: 10px;
         overflow: hidden;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         background-color: #fff;
-        margin-bottom: 20px;
+        cursor: pointer;
     }
 
     .annuncio-header {
-        padding: 10px; /* Ridotto il padding */
+        padding: 10px;
         border-bottom: 1px solid #ddd;
         background-color: #fff;
         display: flex;
@@ -112,78 +113,96 @@
     }
 
     .annuncio-header img {
-        width: 30px; /* Ridotto il width */
-        height: 30px; /* Ridotto l'altezza */
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
-        margin-right: 10px; /* Ridotto il margine */
+        margin-right: 10px;
     }
 
     .annuncio-header h5 {
         margin: 0;
-        font-size: 14px; /* Ridotto il font-size */
+        font-size: 14px;
         font-weight: 600;
     }
 
-    .carousel-item video {
-        width: 100%;
-        height: auto;
-        border-radius: 10px;
+    .annuncio-grid .col-md-4 {
+        padding: 15px;
     }
 
-    .carousel-control-prev-icon,
-    .carousel-control-next-icon {
-        background-color: rgba(0, 0, 0, 0.5);
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
+    .statistics {
+        font-size: 12px;
+        color: #777;
+        margin-top: 10px;
+    }
+    
+    .improvement-positive {
+        color: green;
+    }
+    
+    .improvement-negative {
+        color: red;
+    }
+    
+    .improvement {
+        font-weight: bold;
     }
 </style>
 
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
 
 <div class="container mt-4">
-    <h2>Ricerca Persone</h2>
-    <form id="search-form" class="mb-3" onsubmit="return false;">
-        <div class="input-group" id="search">
-            <input type="text" id="search-input" name="query" class="form-control" placeholder="Cerca persone..." aria-label="Cerca persone" autocomplete="off">
-            <div id="suggestions" class="autocomplete-suggestions"></div>
-        </div>
-    </form>
+    <h2>Benvenuto, {{ user.username }}</h2>
     <hr>
     <h2>I tuoi annunci</h2>
     {% if annunci %}
-        <div id="annunciCarousel" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                {% for annuncio in annunci %}
-                    <div class="carousel-item {% if loop.first %}active{% endif %}">
-                        <div class="annuncio-item">
-                            <div class="annuncio-header">
-                                <img src="{{ url_for('static', filename=inserzionisti[annuncio.id].immagine) if inserzionisti[annuncio.id].immagine else url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ inserzionisti[annuncio.id].username }}">
-                                <h5 class="card-title">@{{ inserzionisti[annuncio.id].username }} </h5>
-                            </div>
-                            <div class="card-body">
-                                {% if annuncio.tipo_post == 'immagini' %}
-                                    <img src="{{ url_for('static', filename=annuncio.media) }}" class="post-media" alt="Immagine dell'annuncio">
-                                {% elif annuncio.tipo_post == 'video' %}
-                                    <video class="post-media" controls>
-                                        <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
-                                        Il tuo browser non supporta il tag video.
-                                    </video>
-                                {% endif %}
-                                <p class="card-text">{{ annuncio.testo }}</p>
+    <div class="row annuncio-grid">
+        {% for annuncio in annunci %}
+            {% set stats_today = statistiche[annuncio.id].today %}
+            {% set stats_yesterday = statistiche[annuncio.id].yesterday %}
+            
+            {% set likes_today = stats_today.likes_count %}
+            {% set likes_yesterday = stats_yesterday.likes_count if stats_yesterday else 0 %}
+            {% set likes_diff = likes_today - likes_yesterday %}
+            {% set likes_diff_str = '+' + likes_diff if likes_diff > 0 else ('-' + abs(likes_diff) if likes_diff < 0 else '+0') %}
+            
+            {% set comments_today = stats_today.comments_count %}
+            {% set comments_yesterday = stats_yesterday.comments_count if stats_yesterday else 0 %}
+            {% set comments_diff = comments_today - comments_yesterday %}
+            {% set comments_diff_str = '+' + comments_diff if comments_diff > 0 else ('-' + abs(comments_diff) if comments_diff < 0 else '+0') %}
+            
+            {% set clicks_today = stats_today.clicks_count %}
+            {% set clicks_yesterday = stats_yesterday.clicks_count if stats_yesterday else 0 %}
+            {% set clicks_diff = clicks_today - clicks_yesterday %}
+            {% set clicks_diff_str = '+' + clicks_diff if clicks_diff > 0 else ('-' + abs(clicks_diff) if clicks_diff < 0 else '+0') %}
+            
+            <div class="col-md-4">
+                <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" class="text-decoration-none text-dark">
+                    <div class="annuncio-item">
+                        <div class="annuncio-header">
+                            <img src="{{ url_for('static', filename=inserzionisti[annuncio.id].immagine) if inserzionisti[annuncio.id].immagine else url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ inserzionisti[annuncio.id].username }}">
+                            <h5 class="card-title">@{{ inserzionisti[annuncio.id].username }}</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if annuncio.tipo_post == 'immagini' %}
+                                <img src="{{ url_for('static', filename=annuncio.media) }}" class="post-media" alt="Immagine dell'annuncio">
+                            {% elif annuncio.tipo_post == 'video' %}
+                                <video class="post-media" controls>
+                                    <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
+                                    Il tuo browser non supporta il tag video.
+                                </video>
+                            {% endif %}
+                            <p class="card-text">{{ annuncio.testo }}</p>
+                            <div class="statistics">
+                                <p>Likes: {{ stats_today.likes_count }} <span class="improvement {% if likes_diff > 0 %}improvement-positive{% elif likes_diff < 0 %}improvement-negative{% endif %}">{{ likes_diff_str }}</span></p>
+                                <p>Comments: {{ stats_today.comments_count }} <span class="improvement {% if comments_diff > 0 %}improvement-positive{% elif comments_diff < 0 %}improvement-negative{% endif %}">{{ comments_diff_str }}</span></p>
+                                <p>Clicks: {{ stats_today.clicks_count }} <span class="improvement {% if clicks_diff > 0 %}improvement-positive{% elif clicks_diff < 0 %}improvement-negative{% endif %}">{{ clicks_diff_str }}</span></p>
                             </div>
                         </div>
                     </div>
-                {% endfor %}
+                </a>
             </div>
-            <button class="carousel-control-prev" type="button" data-bs-target="#annunciCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Previous</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#annunciCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Next</span>
-            </button>
-        </div>
+        {% endfor %}
+    </div>
     {% else %}
         <p>Non ci sono annunci da visualizzare.</p>
     {% endif %}
@@ -222,6 +241,9 @@
         <p>Non ci sono post da visualizzare.</p>
     {% endif %}
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.min.js"></script>
 
 <script>
     document.getElementById('search-input').addEventListener('input', function() {
