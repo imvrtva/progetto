@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ annuncio.titolo }}</title>
+</head>
+<body>
+    <h1>{{ annuncio.titolo }}</h1>
+    <p>{{ annuncio.descrizione }}</p>
+    <p><strong>Numero di like:</strong> {{ num_likes }}</p>
+    <p><strong>Numero di commenti:</strong> {{ num_comments }}</p>
+    
+    <form action="{{ url_for('toggle_like_annuncio', annuncio_id=annuncio.id) }}" method="POST">
+        <button type="submit">
+            {% if user_like %}
+                Dislike
+            {% else %}
+                Like
+            {% endif %}
+        </button>
+    </form>
+
+    <h2>Commenti:</h2>
+    <ul>
+        {% for commento in commenti %}
+            <li><strong>{{ commento.utente_id }}:</strong> {{ commento.content }}</li>
+        {% endfor %}
+    </ul>
+    
+    <h3>Aggiungi un commento:</h3>
+    <form action="{{ url_for('add_comment_annuncio', annuncio_id=annuncio.id) }}" method="POST">
+        <textarea name="content" rows="4" cols="50" placeholder="Scrivi il tuo commento"></textarea>
+        <button type="submit">Invia</button>
+    </form>
+</body>
+</html>

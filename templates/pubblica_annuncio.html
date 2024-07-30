@@ -1,78 +1,38 @@
-<!DOCTYPE html>
-<html lang="it">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Include CSS file -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css') }}">
     <title>Pubblica Annuncio</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
 </head>
 <body>
-    <div class="container mt-4">
-        <h1>Pubblica un Annuncio</h1>
-        <form action="{{ url_for('pubblica_annuncio') }}" method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="tipo_post">Tipo di post:</label>
-                <select class="form-control" id="tipo_post" name="tipo_post" required>
-                    <option value="immagini">Immagini</option>
-                    <option value="testo">Testo</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="sesso_target">Sesso target:</label>
-                <select class="form-control" id="sesso_target" name="sesso_target" required>
-                    <option value="maschio">Maschio</option>
-                    <option value="femmina">Femmina</option>
-                    <option value="tutti">Tutti</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="eta_target">EtÃ  target:</label>
-                <input type="number" class="form-control" id="eta_target" name="eta_target" required>
-            </div>
-            <div>
-                <label for="interessi">Interessi:</label>
-                <input type="text" id="interessi" name="interessi" placeholder="Inizia a digitare...">
-                <div id="interessi-suggestions" style="display: none; border: 1px solid #ccc; background-color: #fff;"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="durata_annuncio">Durata annuncio (giorni):</label>
-                <input type="number" class="form-control" id="durata_annuncio" name="durata_annuncio" required>
-            </div>
-
-            <div class="form-group" id="media_div" style="display: none;">
-                <label for="media">Carica il file:</label>
-                <input type="file" class="form-control-file" id="media" name="media">
-            </div>
-
-            <div class="form-group" id="testo_div" style="display: none;">
-                <label for="testo">Testo dell'annuncio:</label>
-                <textarea class="form-control" id="testo" name="testo" rows="4"></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Pubblica</button>
-            <a href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}" class="btn btn-secondary">Torna alla Home</a>
-        </form>
-    </div>
-
-    <script>
-        document.getElementById('tipo_post').addEventListener('change', function() {
-            var tipoPost = this.value;
-            if (tipoPost === 'immagini') {
-                document.getElementById('media_div').style.display = 'block';
-                document.getElementById('testo_div').style.display = 'none';
-            } else if (tipoPost === 'testo') {
-                document.getElementById('media_div').style.display = 'none';
-                document.getElementById('testo_div').style.display = 'block';
-            }
-        });
-    </script>
-
-    <!-- Bootstrap JS, Popper.js, and jQuery -->
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <form method="POST" enctype="multipart/form-data">
+        <label for="tipo_post">Tipo di Post:</label>
+        <select id="tipo_post" name="tipo_post">
+            <option value="immagini">Immagini</option>
+            <option value="testo">Testo</option>
+        </select>
+        <label for="sesso_target">Sesso Target:</label>
+        <select id="sesso_target" name="sesso_target">
+            <option value="maschio">Maschio</option>
+            <option value="femmina">Femmina</option>
+            <option value="tutti">Tutti</option>
+        </select>
+        <label for="eta_target">Età Target:</label>
+        <input type="number" id="eta_target" name="eta_target">
+        <label for="nome_interesse">Nome Interesse:</label>
+        <input type="text" id="nome_interesse" name="nome_interesse">
+        <label for="durata_annuncio">Durata Annuncio (giorni):</label>
+        <input type="number" id="durata_annuncio" name="durata_annuncio">
+        <label for="titolo">Titolo:</label>
+        <input type="text" id="titolo" name="titolo">
+        <label for="didascalia">Didascalia:</label>
+        <textarea id="didascalia" name="didascalia"></textarea>
+        <label for="testo">Testo:</label>
+        <textarea id="testo" name="testo"></textarea>
+        <label for="immagine">Media:</label>
+        <input type="file" id="immagine" name="immagine">
+        <button type="submit">Pubblica Annuncio</button>
+    </form>
 </body>
 </html>

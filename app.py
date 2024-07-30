@@ -220,19 +220,31 @@ class Annunci(db.Model, UserMixin):
     advertiser_id = Column(Integer, ForeignKey('users.id_utente'), nullable=False)
     tipo_post = Column(SQLAlchemyEnum('immagini', 'video', 'testo', name='tipo_post'))
     sesso_target = Column(SQLAlchemyEnum(Sesso))
+    media = Column(String(255), nullable=True)
     eta_target = Column(Integer, unique=False, nullable=False)
     interesse_target = Column(Integer, ForeignKey('interessi.id_interessi'), nullable=False)
+    
     inizio = Column(TIMESTAMP(timezone=True), server_default=func.current_timestamp(), nullable=False)
     fine = Column(Date, default=func.current_timestamp())
-    data_creazione = Column(TIMESTAMP, server_default=func.current_timestamp(), nullable=False)
 
-    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, fine):
+    testo = Column(String(255), nullable=True)  # Questo Ã¨ corretto
+    titolo = Column(String(255), nullable=True)  # Nuovo campo per il titolo
+    didascalia = Column(Text, nullable=True)      # Nuovo campo per la didascalia
+
+    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, inizio, fine, testo,  titolo, didascalia, media):
         self.advertiser_id = advertiser_id
         self.tipo_post = tipo_post
         self.sesso_target = sesso_target
         self.eta_target = eta_target
         self.interesse_target = interesse_target
+
+        self.inizio= inizio
         self.fine = fine
+        self.testo=testo
+        self.titolo=titolo
+        self.didascalia=didascalia
+        self.media = media
+
         
         
 class AnnunciClicks(db.Model):
@@ -329,9 +341,51 @@ def check_email(email):
     regex_email = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Z|a-z]{2,}\b'
     return not re.fullmatch(regex_email, email)
 
-        #------------------------ rotte sito internet -------------------------#
+def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio, testo=None, titolo=None, didascalia=None, media=None):
+    # Trova l'ID dell'interesse basato sul nome
+    interesse = db.session.query(Interessi).filter_by(nome=nome_interesse).first()
+    if not interesse:
+        return "Interesse non trovato."
+    
+    valid_sesso_targets = ['maschio', 'femmina', 'tutti']
+    if sesso_target not in valid_sesso_targets:
+        return f"Sesso target non valido. Deve essere uno di: {', '.join(valid_sesso_targets)}."
+    
+    try:
+        fine = datetime.now() + timedelta(days=durata_annuncio)
+        
+        annuncio = Annunci(
+            advertiser_id=user_id,
+            tipo_post=tipo_post,
+            sesso_target=sesso_target,
+            eta_target=eta_target,
+            interesse_target=interesse.id_interessi,
+            inizio=datetime.now(),
+            fine=fine,
+            testo=testo,
+            titolo=titolo,
+            didascalia=didascalia,
+            media=media
+        )
 
-#------------------------ log in e log out, registrazione -------------------------#
+        db.session.add(annuncio)
+        db.session.commit()
+
+        return annuncio
+
+    except IntegrityError:
+        db.session.rollback()
+        return "Errore di integrità del database."
+    except Exception as e:
+        db.session.rollback()
+        return str(e)
+
+
+
+
+#------------------------ rotte sito internet -------------------------#
+
+    #------------------------ log in e log out, registrazione -------------------------#
 
     ## login
 
@@ -360,8 +414,8 @@ def log():
             return redirect(url_for('log'))
 
     return render_template('login.html')
-
-    ## logout
+    
+## logout
 
 @app.route('/logout')
 @login_required
@@ -372,7 +426,7 @@ def logout():
     flash("Logout effettuato con successo", category='alert alert-success')
     return redirect(url_for('log'))
 
-    ## registrazione
+## registrazione
 
 @app.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
@@ -425,7 +479,7 @@ def addprofile():
 
     return render_template('registrazione.html')
 
-    ## aggiunta interessi
+## aggiunta interessi
 
 @app.route('/interessi', methods=['GET', 'POST'])
 def interessi():
@@ -583,7 +637,7 @@ def profilo():
     
     return render_template('profilo_io.html', user=user, posts=posts)
 
-from sqlalchemy.exc import IntegrityError
+    ## modificare il profilo
 
 @app.route('/modifica', methods=['GET', 'POST'])
 @login_required
@@ -643,11 +697,6 @@ def modifica_profilo():
     user_interessi = [ui.id_interessi for ui in UserInteressi.query.filter_by(utente_id=user.id_utente).all()]
 
     return render_template('modifica_profilo.html', user=user, interessi=interessi, user_interessi=user_interessi)
-
-
-@app.route('/contenuti/<filename>')
-def serve_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 ## pagina profilo inserzionista
@@ -722,10 +771,12 @@ def pubblica_immagini():
     
     return render_template('pubblicazione_immagine.html')
 
-
+@app.route('/contenuti/<filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 #------------------------------ vedere i post ed eliminarli -------------------------------#
 
-    ## vedere post
+## vedere post
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 @login_required
@@ -755,7 +806,7 @@ def post_details(post_id):
 
     return render_template('post.html', post=post, post_user=post_user, comments=comments, comment_users=comment_users, liked=liked, friends=friends)
     
-    ## eliminare post
+## eliminare post
 
 @app.route('/elimina_post/<int:post_id>', methods=['POST'])
 @login_required
@@ -773,7 +824,6 @@ def elimina_post(post_id):
     db.session.commit()
     flash("Post eliminato con successo.", category="alert alert-success")
     return redirect(url_for('utente', id_utente=current_user.id_utente))
-
 
 ## condividere post
 
@@ -796,13 +846,9 @@ def share_post(post_id, friend_id):
     return redirect(url_for('chat', other_user_id=friend_id))
 
 
-
-
-
-
 #------------------------------ inserire ed eliminare commenti -------------------------------#
 
-    ## inserimento commenti
+## inserimento commenti
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
@@ -814,7 +860,7 @@ def add_comment(post_id):
     db.session.commit()
     return redirect(url_for('post_details', post_id=post_id))
 
-    ## eliminare commenti
+## eliminare commenti
 
 @app.route('/delete_comment/<int:comment_id>', methods=['POST'])
 @login_required
@@ -921,8 +967,7 @@ def notifiche():
 
     return render_template('notifiche.html', all_notifications=all_notifications)
 
-
-    ## funzione per l'orario di arrivo delle notifiche
+## funzione per l'orario di arrivo delle notifiche
 
 def time_since(post_time):
     # Definire il fuso orario italiano
@@ -946,7 +991,7 @@ def time_since(post_time):
 
 #------------------------------ ricerca utente e visualizzazione profilo -------------------------------#
 
-    ## ricerca utente
+## ricerca utente
 
 @app.route('/search_suggestions')
 @login_required
@@ -961,7 +1006,7 @@ def search_suggestions():
         'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
     })
 
-    ## visualizzazione profilo
+## visualizzazione profilo
 
 @app.route('/profilo_amico/<int:id_amico>', methods=['GET', 'POST'])
 @login_required
@@ -1003,7 +1048,7 @@ def followers_list(user_id):
     followers = db.session.query(Users).join(Amici, Amici.io_utente == Users.id_utente).filter(Amici.user_amico == user_id).all()
     return render_template('lista_follower.html', followers=followers)
 
-    ## vedere elenco seguiti
+## vedere elenco seguiti
 
 @app.route('/lista_seguiti/<int:user_id>')
 @login_required
@@ -1014,7 +1059,7 @@ def following_list(user_id):
     following = db.session.query(Users).join(Amici, Amici.user_amico == Users.id_utente).filter(Amici.io_utente == user_id).all()
     return render_template('lista_seguiti.html', following=following)
 
-    ## poter unfolloware una persona dall'elenco
+## poter unfolloware una persona dall'elenco
 
 @app.route('/unfollow/<int:id_amico>', methods=['POST'])
 @login_required
@@ -1035,7 +1080,7 @@ def unfollow(id_amico):
 
     return redirect(url_for('following_list', user_id=user_id))  # Redirige alla pagina dei seguiti
 
-    ## poter togliere un follower dall'elenco
+## poter togliere un follower dall'elenco
 
 @app.route('/remove_follower/<int:id_follower>', methods=['POST'])
 @login_required
@@ -1059,7 +1104,7 @@ def remove_follower(id_follower):
 
 #------------------------------- chat tra amici ---------------------------------#
 
-    ## elenco delle conversazioni
+## elenco delle conversazioni
 
 @app.route('/conversations')
 def conversations():
@@ -1087,7 +1132,7 @@ def conversations():
 
     return render_template('conversations.html', conversations=conversations, users=users)
 
-    ## chat tra amici
+## chat tra amici
 
 @app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
 def chat(other_user_id):
@@ -1148,99 +1193,59 @@ def send_message(other_user_id):
 
 #------------------------------- Annunci ---------------------------------#
 
-## crea il post
-
-def crea_annuncio(user_id, tipo_post, sesso_target, eta_target, nome_interesse, durata_annuncio, testo=None, media=None, contenuto=None):
-    # Trova l'ID dell'interesse basato sul nome
-    interesse = db.session.query(Interessi).filter_by(nome=nome_interesse).first()
-    if not interesse:
-        return "Interesse non trovato."
-    
-    valid_sesso_targets = ['maschio', 'femmina', 'tutti']
-    if sesso_target not in valid_sesso_targets:
-        return f"Sesso target non valido. Deve essere uno di: {', '.join(valid_sesso_targets)}."
-    
-    try:
-        fine = datetime.now() + timedelta(days=durata_annuncio)
-        
-        annuncio = Annunci(
-            advertiser_id=user_id,
-            tipo_post=tipo_post,
-            sesso_target=sesso_target,
-            eta_target=eta_target,
-            interesse_target=interesse.id_interessi,
-            fine=fine,
-            testo=testo,
-            media=media,
-            contenuto=contenuto
-        )
-
-        db.session.add(annuncio)
-        db.session.commit()
-
-        return annuncio
-
-    except IntegrityError:
-        db.session.rollback()
-        return "Errore di integrità del database."
-    except Exception as e:
-        db.session.rollback()
-        return str(e)
-    
-
-
+##pubblicare annuncio
 
 @app.route('/pubblica_annuncio', methods=['GET', 'POST'])
+@login_required
 def pubblica_annuncio():
     if request.method == 'POST':
         user_id = current_user.id_utente
         tipo_post = request.form['tipo_post']
         sesso_target = request.form['sesso_target']
         eta_target = int(request.form['eta_target'])
-        interessi = request.form.getlist('interessi')
+        nome_interesse = request.form['nome_interesse']
         durata_annuncio = int(request.form['durata_annuncio'])
+        titolo = request.form.get('titolo')
+        didascalia = request.form.get('didascalia')
 
         if tipo_post == 'immagini':
-            media = request.files.get('media')  # Gestisce il file dell'immagine o video
-            testo = request.form.get('testo')
+            immagine = request.files['immagine']
+            testo = None
         elif tipo_post == 'testo':
-            media = None
+            immagine = None
             testo = request.form.get('testo')
         else:
             return "Tipo di post non valido."
 
         # Assicurati che la directory 'contenuti' esista
+        # Ensure the 'contenuti' directory exists
         contenuti_path = os.path.join(current_app.root_path, 'contenuti')
         if not os.path.exists(contenuti_path):
             os.makedirs(contenuti_path)
-
-        media_path = None
-        if media and media.filename != '':
-            # Costruisci il percorso completo del file
-            media_path = os.path.join(contenuti_path, media.filename)
-            # Salva il file nella directory 'contenuti'
-            media.save(media_path)
-            media_path = os.path.join('contenuti', media.filename)  # Percorso da salvare nel DB
+        
+        # Construct the full file path
+        nome_file = os.path.join(contenuti_path, immagine.filename)
+        
+        # Save the image to the 'contenuti' directory
+        immagine.save(nome_file)
 
         try:
-            fine = datetime.now() + timedelta(days=durata_annuncio)
-
             # Crea il nuovo annuncio
-            annuncio = Annunci(
-                advertiser_id=user_id,
+            annuncio = crea_annuncio(
+                user_id=user_id,
                 tipo_post=tipo_post,
                 sesso_target=sesso_target,
                 eta_target=eta_target,
-                interesse_target=None,  # Imposta None o un valore appropriato se non usato
-                fine=fine,
+                nome_interesse=nome_interesse,
+                durata_annuncio=durata_annuncio,
                 testo=testo,
-                media=media_path,  # Percorso del file salvato
-                contenuto=testo if tipo_post == 'testo' else None  # Passa il testo se è un annuncio di tipo 'testo'
+                titolo=titolo,
+                didascalia=didascalia,
+                media=immagine  # Aggiungi il nome del file come media nel database
             )
             
-            # Aggiungi l'annuncio al database
-            db.session.add(annuncio)
-            db.session.commit()
+            if isinstance(annuncio, str):
+                return f"Errore: {annuncio}"
             
             # Reindirizza alla home dell'inserzionista con un messaggio di successo
             return redirect(url_for('inserzionista', id_utente=user_id))
@@ -1254,6 +1259,7 @@ def pubblica_annuncio():
     
     interests = Interessi.query.all()
     return render_template('pubblica_annuncio.html', message=None, interests=interests)
+## annunci dedicati all'utente
 
 def recupera_annunci_utente(current_user_id):
     now = datetime.now()
@@ -1303,7 +1309,7 @@ def add_comment_annuncio(annuncio_id):
     # Reindirizza alla pagina dei dettagli dell'annuncio
     return redirect(url_for('recupera_statistiche_annuncio', annuncio_id=annuncio_id))
 
-
+## statistiche degli annunci
 
 def recupera_statistiche_annuncio(annuncio_id):
     num_clicks = db.session.query(AnnunciClicks).filter_by(annuncio_id=annuncio_id).count()
