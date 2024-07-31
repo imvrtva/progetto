@@ -150,43 +150,53 @@
     </form>
     <hr>
     <h2>Annunci a te dedicati</h2>
-{% if annunci %}
-    <div id="annunciCarousel" class="carousel slide" data-bs-ride="carousel">
-        <div class="carousel-inner">
-            {% for annuncio in annunci %}
-            <div class="carousel-item {% if loop.first %}active{% endif %}">
-                <div class="annuncio-item">
-                    <div class="annuncio-header">
-                        <img src="{{ url_for('static', filename=utenti[annuncio.id].immagine) if utenti[annuncio.id].immagine else url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ utenti[annuncio.id] }}">
-                        <h5 class="card-title">@{{ utenti[annuncio.id] }}</h5>
-                    </div>
-                    <div class="card-body">
-                        {% if annuncio.tipo_post == 'immagini' %}
-                            <img src="{{ url_for('static', filename=annuncio.media) }}" class="post-media" alt="Immagine dell'annuncio">
-                        {% elif annuncio.tipo_post == 'video' %}
-                            <video class="post-media" controls>
-                                <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
-                                Il tuo browser non supporta il tag video.
-                            </video>
-                        {% endif %}
-                        <p class="card-text">{{ annuncio.testo }}</p>
+    {% if annunci %}
+        <div id="annunciCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for annuncio in annunci %}
+                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <div class="annuncio-item">
+                        <div class="annuncio-header">
+                            {% set user_data = utenti.get(annuncio.utente_id) %}
+                            {% if user_data %}
+                                {% if user_data['immagine'] %}
+                                    <img src="{{ url_for('static', filename=user_data['immagine']) }}" alt="Foto profilo di {{ user_data['username'] }}">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ user_data['username'] }}">
+                                {% endif %}
+                                <h5 class="card-title">@{{ user_data['username'] }}</h5>
+                            {% else %}
+                                <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Foto profilo di Utente sconosciuto">
+                                <h5 class="card-title">Utente sconosciuto</h5>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            {% if annuncio.tipo_post == 'immagini' %}
+                                <img src="{{ url_for('static', filename=annuncio.media) }}" class="post-media" alt="Immagine dell'annuncio">
+                            {% elif annuncio.tipo_post == 'video' %}
+                                <video class="post-media" controls>
+                                    <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
+                                    Il tuo browser non supporta il tag video.
+                                </video>
+                            {% endif %}
+                            <p class="card-text">{{ annuncio.testo }}</p>
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#annunciCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#annunciCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
         </div>
-        <button class="carousel-control-prev" type="button" data-bs-target="#annunciCarousel" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Previous</span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#annunciCarousel" data-bs-slide="next">
-            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Next</span>
-        </button>
-    </div>
-{% else %}
-    <p>Non ci sono annunci a te dedicati.</p>
-{% endif %}
+    {% else %}
+        <p>Non ci sono annunci a te dedicati.</p>
+    {% endif %}
 <hr>
 <h2>Post dei tuoi amici</h2>
 {% if posts %}

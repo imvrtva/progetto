@@ -102,7 +102,7 @@
         </div>
         <img src="/contenuti/logo.png" alt="Logo">
         <div class="right-icons">
-            {% if current_user.role == 'inserzionista' %}
+            {% if current_user.ruolo == 'inserzionista' %}
                 <a class="nav-link" href="{{ url_for('some_inserzionista_page') }}"><i class="fas fa-chart-line"></i></a>
             {% else %}
                 <a class="nav-link" href="{{ url_for('conversations') }}"><i class="fas fa-comment"></i></a>
@@ -126,7 +126,7 @@
                     <a class="nav-link" href="{{ url_for('inserzionista', id_utente=current_user.id_utente) }}"><i class="fas fa-briefcase"></i></a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('insight') }}"><i class="fas fa-chart-bar"></i></a> <!-- Insight Button -->
+                    <a class="nav-link" href="{{ url_for('insight', advertiser_id=current_user.id_utente) }}"><i class="fas fa-chart-bar"></i></a> <!-- Insight Button -->
                 </li>
             {% else %}
                 <li class="nav-item">

@@ -32,6 +32,12 @@ login_manager.login_view = 'login.log'
 login_manager.init_app(app)
 bcrypt = Bcrypt(app)
 socketio = SocketIO(app)
+@app.template_filter('abs')
+def abs_filter(value):
+    return abs(value)
+
+# Register the filter
+app.jinja_env.filters['abs'] = abs_filter
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -355,6 +361,12 @@ def get_annuncio_statistics(annuncio_id):
         'today': stats_today,
         'yesterday': stats_yesterday,
     }
+
+
+def prepare_chart_data(counts):
+    # Rimuovere la normalizzazione e restituire i conteggi grezzi
+    return [counts.get(date, 0) for date in date_range]
+
 #------------------------ rotte sito internet -------------------------#
 
     #------------------------ log in e log out, registrazione -------------------------#
@@ -558,15 +570,13 @@ def utente(id_utente):
 @login_required
 def inserzionista(id_utente):
     # Recupera l'utente inserzionista
-    user = Users.query.filter_by(id_utente=id_utente).first()
+    user = Users.query.get_or_404(id_utente)
     
     # Recupera l'ID dell'utente corrente (chi sta visualizzando la pagina)
     current_user_id = current_user.id_utente
     
     # Recupera gli utenti seguiti dall'utente corrente
     seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
-    
-    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
     seguiti_ids.append(current_user_id)
     
     # Recupera i post degli utenti seguiti
@@ -587,10 +597,7 @@ def inserzionista(id_utente):
     ).order_by(Annunci.inizio.desc()).all()
     
     # Recupera gli utenti che hanno creato gli annunci
-    inserzionisti = {annuncio.id: Users.query.filter_by(id_utente=annuncio.advertiser_id).first() for annuncio in annunci}
-    
-    # Debug: controlla se inserzionisti è correttamente definito
-    print("Inserzionisti:", inserzionisti)
+    advertisers = Users.query.filter_by(ruolo=Ruolo.pubblicitari).all()
     
     # Recupera statistiche per ogni annuncio
     statistiche_annunci = {
@@ -599,7 +606,7 @@ def inserzionista(id_utente):
 
     today = datetime.today().date()
     
-    return render_template('home_inserzionista.html', today=today, user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, inserzionisti=inserzionisti)
+    return render_template('home_inserzionista.html', today=today, user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, advertisers=advertisers)
 
 
 
@@ -676,8 +683,6 @@ def modifica_profilo():
 
     return render_template('modifica_profilo.html', user=user, interessi=interessi, user_interessi=user_interessi)
 
-
-## pagina profilo inserzionista
 
 #------------------------------ pubblicazione post -------------------------------#
 
@@ -1317,10 +1322,11 @@ def annuncio_details(annuncio_id):
     annuncio = Annunci.query.get_or_404(annuncio_id)
     annuncio_user = Users.query.get(annuncio.advertiser_id)
     
+    friends = Users.query.join(Amici, (Amici.user_amico == Users.id_utente)).filter(Amici.io_utente == current_user.id_utente).all()
     # Fetch statistics
     likes = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).all()
     comments = AnnunciComments.query.filter_by(annuncio_id=annuncio_id).all()
-
+    comment_users = {comment.utente_id: Users.query.get(comment.utente_id) for comment in comments}
     # Prepare data for the charts
     likes_count = len(likes)
     is_liked = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=current_user.id_utente).first() is not None
@@ -1332,18 +1338,55 @@ def annuncio_details(annuncio_id):
         likes_count=likes_count,
         liked=is_liked,
         comments=comments,
-        comment_users={comment.id: Users.query.get(comment.utente_id) for comment in comments}
+        comment_users=comment_users,
+        firends=friends
     )
 
 
-@app.route('/insight')
-@login_required
-def insight():
-    likes = get_likes_per_month(db.session, current_user.id_utente)
-    comments = get_comments_per_month(db.session, current_user.id_utente)
-    followers = get_followers_per_month(db.session, current_user.id_utente)
+@app.route('/insights/<int:advertiser_id>')
+def insight(advertiser_id):
+    from datetime import datetime, timedelta
+
+    advertiser = Users.query.get_or_404(advertiser_id)
+    ads = Annunci.query.filter_by(advertiser_id=advertiser_id).all()
     
-    return render_template('insight.html', likes=likes, comments=comments, followers=followers)
+    ad_ids = [ad.id for ad in ads]
+    
+    # Aggrega i conteggi per giorno
+    def aggregate_counts(events, date_field):
+        daily_counts = {}
+        for event in events:
+            date = getattr(event, date_field).date()
+            if date not in daily_counts:
+                daily_counts[date] = 0
+            daily_counts[date] += 1
+        return daily_counts
+
+    clicks_per_day = AnnunciClicks.query.filter(AnnunciClicks.annuncio_id.in_(ad_ids)).all()
+    likes_per_day = AnnunciLikes.query.filter(AnnunciLikes.annuncio_id.in_(ad_ids)).all()
+    comments_per_day = AnnunciComments.query.filter(AnnunciComments.annuncio_id.in_(ad_ids)).all()
+
+    clicks_counts = aggregate_counts(clicks_per_day, 'clicked_at')
+    likes_counts = aggregate_counts(likes_per_day, 'clicked_at')
+    comments_counts = aggregate_counts(comments_per_day, 'created_at')
+    
+    today = datetime.now().date()
+    start_date = today - timedelta(days=30)
+    date_range = [start_date + timedelta(days=i) for i in range((today - start_date).days + 1)]
+    
+    def prepare_chart_data(counts):
+        return [counts.get(date, 0) for date in date_range]
+    
+    normalized_data = {
+        'dates': [date.strftime('%Y-%m-%d') for date in date_range],
+        'clicks': prepare_chart_data(clicks_counts),
+        'likes': prepare_chart_data(likes_counts),
+        'comments': prepare_chart_data(comments_counts)
+    }
+    
+    return render_template('insight.html', advertiser=advertiser, insights=normalized_data)
+
+
 
 # Emit an update when a like is added
 @socketio.on('connect')
@@ -1497,6 +1540,23 @@ def delete_comment_annunci(comment_id):
     db.session.commit()
     flash('Commento eliminato con successo.', 'success')
     return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
+
+@app.route('/elimina_annuncio/<int:annuncio_id>', methods=['POST'])
+@login_required
+def elimina_annuncio(annuncio_id):
+    # Recupera l'annuncio con l'ID specificato
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    # Verifica se l'utente corrente è l'autore dell'annuncio
+    if annuncio.advertiser_id != current_user.id_utente:
+        flash("Non sei autorizzato a eliminare questo annuncio.", category="alert alert-danger")
+        return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
+    # Elimina i like associati all'annuncio
+    PostLikes.query.filter_by(post_id=annuncio_id).delete()
+    # Elimina l'annuncio
+    db.session.delete(annuncio)
+    db.session.commit()
+    flash("Annuncio eliminato con successo.", category="alert alert-success")
+    return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
 
 
 

@@ -8,104 +8,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Insight Pubblicitari</title>
+    <title>Advertiser Insights</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Insight Pubblicitari</h1>
-        <div class="row">
-            <div class="col-md-6">
-                <canvas id="likesChart"></canvas>
-            </div>
-            <div class="col-md-6">
-                <canvas id="commentsChart"></canvas>
-            </div>
-        </div>
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <canvas id="clicksChart"></canvas>
-            </div>
-            <div class="col-md-6">
-                <canvas id="followersChart"></canvas>
-            </div>
-        </div>
-    </div>
+    <h1>Insights for {{ advertiser.username }}</h1>
+
+    <canvas id="clicksChart"></canvas>
+    <canvas id="likesChart"></canvas>
+    <canvas id="commentsChart"></canvas>
 
     <script>
-        const socket = io.connect('http://' + document.domain + ':' + location.port);
-
-        function updateCharts(data) {
-            const likesChart = Chart.getChart('likesChart');
-            const commentsChart = Chart.getChart('commentsChart');
-            const followersChart = Chart.getChart('followersChart');
-
-            if (likesChart) {
-                likesChart.data.labels = Array(data.likes.length).fill().map((_, i) => i + 1);
-                likesChart.data.datasets[0].data = data.likes;
-                likesChart.update();
-            }
-
-            if (commentsChart) {
-                commentsChart.data.labels = Array(data.comments.length).fill().map((_, i) => i + 1);
-                commentsChart.data.datasets[0].data = data.comments;
-                commentsChart.update();
-            }
-
-            if (followersChart) {
-                followersChart.data.labels = Array(data.followers.length).fill().map((_, i) => i + 1);
-                followersChart.data.datasets[0].data = data.followers;
-                followersChart.update();
-            }
+        const labels = {{ insights.dates | tojson }};
+        
+        const clicksData = {
+            labels: labels,
+            datasets: [{
+                label: 'Clicks',
+                data: {{ insights.clicks | tojson }},
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                borderColor: 'rgb(75, 192, 192)',
+                borderWidth: 1
+            }]
+        };
+    
+        const likesData = {
+            labels: labels,
+            datasets: [{
+                label: 'Likes',
+                data: {{ insights.likes | tojson }},
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgb(54, 162, 235)',
+                borderWidth: 1
+            }]
+        };
+    
+        const commentsData = {
+            labels: labels,
+            datasets: [{
+                label: 'Comments',
+                data: {{ insights.comments | tojson }},
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgb(255, 99, 132)',
+                borderWidth: 1
+            }]
+        };
+    
+        function createChart(id, data, label) {
+            new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'bar',
+                data: data,
+                options: {
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: label
+                            },
+                            ticks: {
+                                stepSize: 1,  // Incremento dell'asse y
+                                callback: function(value) {
+                                    return Number.isInteger(value) ? value : '';
+                                }
+                            }
+                        }
+                    },
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
-
-        socket.on('update', function(data) {
-            updateCharts(data);
-        });
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Inizializza i grafici con dati vuoti
-            new Chart(document.getElementById('likesChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Likes nel mese',
-                        data: [],
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)'
-                    }]
-                }
-            });
-
-            new Chart(document.getElementById('commentsChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Commenti nel mese',
-                        data: [],
-                        borderColor: 'rgba(153, 102, 255, 1)',
-                        backgroundColor: 'rgba(153, 102, 255, 0.2)'
-                    }]
-                }
-            });
-
-            new Chart(document.getElementById('followersChart'), {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Nuovi follower nel mese',
-                        data: [],
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)'
-                    }]
-                }
-            });
-        });
+    
+        createChart('clicksChart', clicksData, 'Number of Clicks');
+        createChart('likesChart', likesData, 'Number of Likes');
+        createChart('commentsChart', commentsData, 'Number of Comments');
     </script>
+    
+    
 </body>
 </html>
+
 {% endblock %}

@@ -12,6 +12,7 @@
     <!-- Include Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <style>
+        /* Stili CSS */
         .post-container {
             border: 1px solid #ddd;
             padding: 15px;
@@ -198,27 +199,18 @@
         .share-list button:hover {
             background-color: #218838;
         }
+        .delete-button {
+            background: none;
+            border: none;
+            color: red;
+            cursor: pointer;
+        }
+        .delete-button .fa-trash {
+            color: red;
+        }
     </style>
 </head>
 <body>
-    <!-- Share Modal -->
-    <div id="shareModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="document.getElementById('shareModal').style.display='none'">&times;</span>
-            <h3>Condividi con...</h3>
-            <ul class="share-list">
-                {% for friend in friends %}
-                    <li>
-                        <form method="post" action="{{ url_for('share_annuncio', annuncio_id=annuncio.id, friend_id=friend.id_utente) }}">
-                            <textarea name="additional_text" rows="2" placeholder="Aggiungi un testo..." required></textarea>
-                            <button type="submit">{{ friend.username }}</button>
-                        </form>
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-
     <div class="post-container">
         <div class="card-footer text-muted text-center border-0 bg-white">
             Pubblicato il: {{ annuncio.inizio.strftime('%d-%m-%Y %H:%M') }}
@@ -247,11 +239,15 @@
                 </button>
             </form>
         </div>
+        {% if annuncio.advertiser_id == current_user.id_utente %}
+            <form method="post" action="{{ url_for('elimina_annuncio', annuncio_id=annuncio.id) }}" style="display:inline;">
+                <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo annuncio?');">
+                    <i class="fa fa-trash"></i>
+                </button>
+            </form>
+        {% endif %}
     </div>
     <hr>
-
-   
-    
 
     <!-- Sezione Commenti -->
     <div class="comments-section">
@@ -275,31 +271,14 @@
             </div>
         {% endfor %}
     </div>
- <!-- Form per aggiungere commenti -->
+    <!-- Form per aggiungere commenti -->
     <div class="comment-form">
         <form method="post" action="{{ url_for('add_comment_annunci', annuncio_id=annuncio.id) }}">
             <textarea name="content" rows="3" placeholder="Scrivi un commento..." required></textarea>
             <button type="submit">Commenta</button>
         </form>
     </div>
-    <script>
-        var modal = document.getElementById("shareModal");
-        var span = document.getElementsByClassName("close")[0];
-
-        function openModal() {
-            modal.style.display = "block";
-        }
-
-        span.onclick = function() {
-            modal.style.display = "none";
-        }
-
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        }
-    </script>
+        
 </body>
 </html>
 {% endblock %}
