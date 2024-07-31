@@ -235,8 +235,9 @@ class Annunci(db.Model, UserMixin):
     fine = Column(Date, default=func.current_timestamp())
     testo = Column(String(255), nullable=True)  # Questo Ã¨ corretto
     titolo = Column(String(255), nullable=True)  # Nuovo campo per il titolo 
+    link = db.Column(db.String(200), nullable=True) 
 
-    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, inizio, fine, testo,  titolo, media):
+    def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, inizio, fine, testo,  titolo, media, link):
         self.advertiser_id = advertiser_id
         self.tipo_post = tipo_post
         self.sesso_target = sesso_target
@@ -247,6 +248,7 @@ class Annunci(db.Model, UserMixin):
         self.testo=testo
         self.titolo=titolo
         self.media = media
+        self.link=link
       
 class AnnunciClicks(db.Model):
     __tablename__ = 'annunci_clicks'
@@ -513,57 +515,47 @@ def interessi():
 @app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def utente(id_utente):
-    # Recupera l'utente con l'ID passato come parametro
     user = Users.query.filter_by(id_utente=id_utente).first()
-
-    # Verifica se l'utente esiste
+    
     if not user:
         flash("Utente non trovato", category="alert alert-danger")
         return redirect(url_for('log'))
 
-    # Recupera l'ID dell'utente corrente
     current_user_id = current_user.id_utente
-
-    # Recupera gli utenti seguiti dall'utente corrente
     seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
-
-    # Aggiungi l'ID dell'utente corrente alla lista degli utenti seguiti se necessario
     seguiti_ids.append(current_user_id)
 
-    # Recupera i post degli utenti seguiti
     posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
 
-    # Recupera gli utenti seguiti in una sola query
-    utenti_dict = {utente.id_utente: utente.username for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
+    utenti_dict = {utente.id_utente: {"username": utente.username, "immagine": utente.immagine} for utente in Users.query.filter(Users.id_utente.in_(seguiti_ids)).all()}
 
-    # Recupera gli interessi dell'utente corrente
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
 
-    # Recupera gli annunci che corrispondono agli interessi e ai target dell'utente
     now = datetime.now()
     annunci = Annunci.query.filter(
-        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Corrispondenza degli interessi
-        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
-        (Annunci.eta_target <= user.eta),  # Età dell'utente deve essere minore o uguale a quella target dell'annuncio
+        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),
+        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),
+        (Annunci.eta_target <= user.eta),
         Annunci.fine > now
-    ).order_by(Annunci.fine.desc()).all()
+    ).order_by(Annunci.fine.desc()).limit(3).all()  # Limita i risultati a 3
 
-    # Funzione per ottenere il tempo passato
     def get_time_ago(timestamp):
         if timestamp is None:
             return "Data non disponibile"
         return humanize.naturaltime(now - timestamp)
 
-    # Aggiungi il tempo relativo ai post e agli annunci
     for post in posts:
         post.time_ago = get_time_ago(post.data_creazione)
 
     for annuncio in annunci:
         annuncio.time_ago = get_time_ago(annuncio.inizio)
 
-    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci)
-    
+    advertiser_ids = [annuncio.advertiser_id for annuncio in annunci]
+    advertisers = {advertiser.id_utente: {"username": advertiser.username, "immagine": advertiser.immagine} for advertiser in Users.query.filter(Users.id_utente.in_(advertiser_ids)).all()}
+
+    return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci, advertisers=advertisers)
+
     ## home page inserzionista
 
 @app.route('/homepage/inserzionista/<int:id_utente>', methods=['GET', 'POST'])
@@ -825,6 +817,7 @@ def share_post(post_id, friend_id):
         )
         db.session.add(new_message)
         db.session.commit()
+        
 
     return redirect(url_for('chat', other_user_id=friend_id))
 
@@ -983,11 +976,18 @@ def search_suggestions():
     if not query:
         return jsonify({'suggestions': []})
 
+    # Stampa il valore della query per debug
+    print(f"Received query: {query}")
+
     suggestions = db.session.query(Users).filter(Users.username.ilike(f'%{query}%')).limit(10).all()
     
+    # Stampa i risultati per debug
+    print(f"Suggestions found: {suggestions}")
+
     return jsonify({
         'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
     })
+
 
 ## visualizzazione profilo
 
@@ -1203,6 +1203,7 @@ def pubblica_annuncio():
         fine = datetime.strptime(request.form['fine'], '%Y-%m-%d')
         testo = request.form['testo']
         titolo = request.form['titolo']
+        link = request.form.get('link')
         
         # Handle file upload
         file = request.files.get('media')
@@ -1223,18 +1224,19 @@ def pubblica_annuncio():
             fine=fine,
             testo=testo,
             titolo=titolo,
-            media=filename
+            media=filename,
+            link=link  
         )
 
         try:
             db.session.add(nuovo_annuncio)
             db.session.commit()
             flash('Annuncio pubblicato con successo!', 'success')
-            return redirect(url_for('inserzionista'))
+            return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
         except Exception as e:
             db.session.rollback()
             flash(f'Errore nella pubblicazione dell\'annuncio: {str(e)}', 'danger')
-
+            return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
     interessi = Interessi.query.all()
     return render_template('pubblica_annuncio.html', interessi=interessi)
 
@@ -1552,13 +1554,47 @@ def elimina_annuncio(annuncio_id):
         return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
     # Elimina i like associati all'annuncio
     PostLikes.query.filter_by(post_id=annuncio_id).delete()
+    
+    # Elimina i click associati all'annuncio
+    AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).delete()
+    
     # Elimina l'annuncio
     db.session.delete(annuncio)
     db.session.commit()
     flash("Annuncio eliminato con successo.", category="alert alert-success")
     return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
 
+@app.route('/register_click', methods=['POST'])
+@login_required
+def register_click():
+    data = request.get_json()
+    annuncio_id = data.get('annuncio_id')
+    utente_id = current_user.id_utente
+    clicked_at = datetime.utcnow()
+    
+    if annuncio_id is None:
+        return jsonify({'error': 'Annuncio ID is required'}), 400
 
+    try:
+        """
+        # Check if click already recorded to avoid duplicates
+        existing_click = AnnunciClicks.query.filter_by(
+            annuncio_id=annuncio_id, utente_id=utente_id
+        ).first()
+        if existing_click is not None:
+            return jsonify({'message': 'Click already recorded'}), 200
+"""
+        new_click = AnnunciClicks(
+            annuncio_id=annuncio_id,
+            utente_id=utente_id,
+            clicked_at=clicked_at
+        )
+        db.session.add(new_click)
+        db.session.commit()
+        return jsonify({'message': 'Click registered successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 # Inizializzazione dell'applicazione

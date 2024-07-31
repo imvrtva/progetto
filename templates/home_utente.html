@@ -4,6 +4,7 @@
 
 {% block content %}
 <style>
+    /* Gli stili sono invariati */
     .container {
         max-width: 1100px;
         margin: 0 auto;
@@ -13,16 +14,26 @@
     }
 
     #search {
-        margin-bottom: 20px;
-        padding-bottom: 0;
-        position: relative;
-    }
+    margin-bottom: 20px;
+    padding-bottom: 0;
+    position: relative;
+    border-radius: 10px; /* Arrotonda gli angoli del contenitore di ricerca */
+    border: 1px solid #ddd; /* Aggiungi un bordo per separare visivamente il campo di ricerca */
+}
 
     #posts {
         margin-top: 20px;
         padding-top: 0;
     }
 
+    /* Aggiungi border-radius all'input per farlo adattare */
+    #search-input {
+        border-radius: 10px; /* Arrotonda gli angoli dell'input di ricerca */
+        border: none; /* Rimuovi il bordo dell'input per adattarsi meglio al contenitore */
+        box-shadow: none; /* Rimuovi eventuali ombre dell'input */
+    }
+
+    /* Rendi visibili i suggerimenti e adattali al contenitore */
     .autocomplete-suggestions {
         border: 1px solid #ddd;
         max-height: 200px;
@@ -33,13 +44,20 @@
         right: 0;
         z-index: 1000;
         background: #fff;
-        display: none;
+        display: none; /* Nascondi i suggerimenti di default */
+        border-radius: 0 0 10px 10px; /* Arrotonda solo gli angoli inferiori dei suggerimenti */
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
+    /* Arrotonda gli angoli dei singoli suggerimenti */
     .autocomplete-suggestion {
         padding: 10px;
         cursor: pointer;
+        border-bottom: 1px solid #ddd; /* Separazione tra i suggerimenti */
+    }
+
+    .autocomplete-suggestion:last-child {
+        border-bottom: none; /* Rimuove la separazione dall'ultimo suggerimento */
     }
 
     .autocomplete-suggestion:hover {
@@ -62,9 +80,6 @@
 
     .card {
         margin-bottom: 20px;
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
         border-radius: 10px;
         overflow: hidden;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -73,9 +88,6 @@
 
     .card-body {
         padding: 15px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
     }
 
     .card-text {
@@ -93,18 +105,13 @@
     }
 
     .annuncio-item {
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
         border-radius: 10px;
         overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         background-color: #fff;
-        margin-bottom: 20px;
     }
 
     .annuncio-header {
-        padding: 10px; /* Ridotto il padding */
+        padding: 10px;
         border-bottom: 1px solid #ddd;
         background-color: #fff;
         display: flex;
@@ -112,15 +119,15 @@
     }
 
     .annuncio-header img {
-        width: 30px; /* Ridotto il width */
-        height: 30px; /* Ridotto l'altezza */
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
-        margin-right: 10px; /* Ridotto il margine */
+        margin-right: 10px;
     }
 
     .annuncio-header h5 {
         margin: 0;
-        font-size: 14px; /* Ridotto il font-size */
+        font-size: 14px;
         font-weight: 600;
     }
 
@@ -137,7 +144,6 @@
         width: 40px;
         height: 40px;
     }
-
 </style>
 
 <div class="container mt-4">
@@ -150,21 +156,21 @@
     </form>
     <hr>
     <h2>Annunci a te dedicati</h2>
-    {% if annunci %}
-        <div id="annunciCarousel" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                {% for annuncio in annunci %}
-                <div class="carousel-item {% if loop.first %}active{% endif %}">
-                    <div class="annuncio-item">
+    <div class="row">
+        {% if annunci %}
+            {% for annuncio in annunci %}
+                <div class="col-md-4 mb-4">
+                    <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" class="stretched-link">
+                    <div class="annuncio-item card">
                         <div class="annuncio-header">
-                            {% set user_data = utenti.get(annuncio.utente_id) %}
-                            {% if user_data %}
-                                {% if user_data['immagine'] %}
-                                    <img src="{{ url_for('static', filename=user_data['immagine']) }}" alt="Foto profilo di {{ user_data['username'] }}">
+                            {% set advertiser_data = advertisers.get(annuncio.advertiser_id) %}
+                            {% if advertiser_data %}
+                                {% if advertiser_data.immagine %}
+                                    <img src="{{ url_for('static', filename=advertiser_data.immagine) }}" alt="Foto profilo di {{ advertiser_data.username }}">
                                 {% else %}
-                                    <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ user_data['username'] }}">
+                                    <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Foto profilo di {{ advertiser_data.username }}">
                                 {% endif %}
-                                <h5 class="card-title">@{{ user_data['username'] }}</h5>
+                                <h5 class="card-title">@{{ advertiser_data.username }}</h5>
                             {% else %}
                                 <img src="{{ url_for('static', filename='default_profile.png') }}" alt="Foto profilo di Utente sconosciuto">
                                 <h5 class="card-title">Utente sconosciuto</h5>
@@ -176,52 +182,53 @@
                             {% elif annuncio.tipo_post == 'video' %}
                                 <video class="post-media" controls>
                                     <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
-                                    Il tuo browser non supporta il tag video.
+                                    Il tuo browser non supporta il video.
                                 </video>
                             {% endif %}
                             <p class="card-text">{{ annuncio.testo }}</p>
                         </div>
                     </div>
+                </a>
                 </div>
-                {% endfor %}
-            </div>
-            <button class="carousel-control-prev" type="button" data-bs-target="#annunciCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Previous</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#annunciCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Next</span>
-            </button>
-        </div>
-    {% else %}
-        <p>Non ci sono annunci a te dedicati.</p>
-    {% endif %}
-<hr>
-<h2>Post dei tuoi amici</h2>
-{% if posts %}
-    <ul class="list-unstyled">
-        {% for post in posts %}
+            {% endfor %}
+        {% else %}
+            <p>Non ci sono annunci a te dedicati.</p>
+        {% endif %}
+    </div>
+    <hr>
+    <h2>Post dei tuoi amici</h2>
+    {% if posts %}
+        <ul class="list-unstyled">
+            {% for post in posts %}
             <li class="post-item mb-3">
                 <div class="card">
                     <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
                     <div class="card-body">
                         <div class="d-flex align-items-start">
-                            <img src="{{ url_for('static', filename=utenti[post.utente].immagine) if utenti[post.utente].immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti[post.utente] }}">
-                            <div class="ms-2">
-                                <h5 class="card-title">@{{ utenti[post.utente] }}</h5>
-                                <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di più</a>{% endif %}</p>
-                                {% if post.media %}
-                                    {% if post.tipo_post == 'immagini' %}
-                                        <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
-                                    {% elif post.tipo_post == 'video' %}
-                                        <video class="post-media" controls>
-                                            <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
-                                            Il tuo browser non supporta il video.
-                                        </video>
+                            {% set user_data = utenti.get(post.utente) %}
+                            {% if user_data %}
+                                <img src="{{ url_for('static', filename=user_data['immagine'] or 'default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ user_data['username'] }}">
+                                <div class="ms-2">
+                                    <h5 class="card-title">@{{ user_data['username'] }}</h5>
+                                    <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di più</a>{% endif %}</p>
+                                    {% if post.media %}
+                                        {% if post.tipo_post == 'immagini' %}
+                                            <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
+                                        {% elif post.tipo_post == 'video' %}
+                                            <video class="post-media" controls>
+                                                <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                                                Il tuo browser non supporta il video.
+                                            </video>
+                                        {% endif %}
                                     {% endif %}
-                                {% endif %}
-                            </div>
+                                </div>
+                            {% else %}
+                                <img src="{{ url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di Utente sconosciuto">
+                                <div class="ms-2">
+                                    <h5 class="card-title">Utente sconosciuto</h5>
+                                    <p class="card-text">{{ post.testo }}</p>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="card-footer text-muted">
@@ -229,11 +236,11 @@
                     </div>
                 </div>
             </li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p>Non ci sono post da visualizzare.</p>
-{% endif %}
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Non ci sono post al momento.</p>
+    {% endif %}
 </div>
 
 <script>
@@ -252,6 +259,7 @@
             .then(data => {
                 if (data.suggestions.length > 0) {
                     suggestionsBox.innerHTML = data.suggestions
+                        .filter(user => user.id !== {{ current_user.id_utente }}) // Escludi l'utente corrente
                         .filter(user => user.id !== {{ current_user.id_utente }})
                         .map(user => 
                             `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
@@ -279,4 +287,5 @@
         }
     });
 </script>
+    
 {% endblock %}
