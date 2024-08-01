@@ -3,6 +3,24 @@
 {% block title %}Homepage Utente{% endblock %}
 
 {% block content %}
+
+<style>
+    .flash-message {
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .flash-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
 <style>
     /* Gli stili sono invariati */
     .container {
@@ -14,12 +32,9 @@
     }
 
     #search {
-    margin-bottom: 20px;
-    padding-bottom: 0;
-    position: relative;
-    border-radius: 10px; /* Arrotonda gli angoli del contenitore di ricerca */
-    border: 1px solid #ddd; /* Aggiungi un bordo per separare visivamente il campo di ricerca */
-}
+        position: relative;
+        z-index: 1000; /* Assicurati che abbia un z-index alto */
+    }
 
     #posts {
         margin-top: 20px;
@@ -210,7 +225,7 @@
                                 <img src="{{ url_for('static', filename=user_data['immagine'] or 'default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ user_data['username'] }}">
                                 <div class="ms-2">
                                     <h5 class="card-title">@{{ user_data['username'] }}</h5>
-                                    <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di più</a>{% endif %}</p>
+                                    <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di piÃ¹</a>{% endif %}</p>
                                     {% if post.media %}
                                         {% if post.tipo_post == 'immagini' %}
                                             <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
@@ -260,7 +275,6 @@
                 if (data.suggestions.length > 0) {
                     suggestionsBox.innerHTML = data.suggestions
                         .filter(user => user.id !== {{ current_user.id_utente }}) // Escludi l'utente corrente
-                        .filter(user => user.id !== {{ current_user.id_utente }})
                         .map(user => 
                             `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
                         ).join('');
@@ -286,6 +300,7 @@
             suggestionsBox.style.display = 'none';
         }
     });
+
 </script>
     
 {% endblock %}

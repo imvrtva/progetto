@@ -1,8 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Dettagli del Post{% endblock %}
+{% block title %}Insights{% endblock %}
 
 {% block content %}
+
+<style>
+    .flash-message {
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .flash-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +30,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>Insights for {{ advertiser.username }}</h1>
+    <h1>Insights</h1>
 
     <canvas id="clicksChart"></canvas>
     <canvas id="likesChart"></canvas>
@@ -24,7 +42,7 @@
         const clicksData = {
             labels: labels,
             datasets: [{
-                label: 'Clicks',
+                label: 'Click',
                 data: {{ insights.clicks | tojson }},
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                 borderColor: 'rgb(75, 192, 192)',
@@ -35,7 +53,7 @@
         const likesData = {
             labels: labels,
             datasets: [{
-                label: 'Likes',
+                label: 'Like',
                 data: {{ insights.likes | tojson }},
                 backgroundColor: 'rgba(54, 162, 235, 0.2)',
                 borderColor: 'rgb(54, 162, 235)',
@@ -46,7 +64,7 @@
         const commentsData = {
             labels: labels,
             datasets: [{
-                label: 'Comments',
+                label: 'Commenti',
                 data: {{ insights.comments | tojson }},
                 backgroundColor: 'rgba(255, 99, 132, 0.2)',
                 borderColor: 'rgb(255, 99, 132)',
@@ -64,7 +82,7 @@
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Date'
+                                text: 'Data'
                             }
                         },
                         y: {
@@ -98,9 +116,9 @@
             });
         }
     
-        createChart('clicksChart', clicksData, 'Number of Clicks');
-        createChart('likesChart', likesData, 'Number of Likes');
-        createChart('commentsChart', commentsData, 'Number of Comments');
+        createChart('clicksChart', clicksData, 'Numero di click');
+        createChart('likesChart', likesData, 'Numero di like');
+        createChart('commentsChart', commentsData, 'Numero di commenti');
     </script>
     
     

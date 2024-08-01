@@ -3,10 +3,28 @@
 {% block title %}Profilo Utente{% endblock %}
 
 {% block content %}
+
+<style>
+    .flash-message {
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .flash-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
 <div class="container mt-1">
     <!-- Profilo Header -->
     <div class="profile-header d-flex align-items-center mb-4">
-        <img src="{{ amico.immagine if amico.immagine else url_for('static', filename='default_profile.png') }}" 
+        <img src="{{ url_for('static', filename=amico['immagine'] or 'default_profile.png') }}" 
              alt="Foto Profilo" class="profile-img rounded-circle mx-5" 
              style="width: 150px; height: 150px; object-fit: cover;">
         <div class="profile-info ml-4">
@@ -14,12 +32,16 @@
             <p class="text-muted mb-2">@{{ amico.username }}</p>
             <p class="bio mt-3">{{ amico.bio or "Nessuna biografia" }}</p>
             <form method="post" class="d-flex">
-                {% if seguendo %}
-                    <button type="submit" class="btn btn-danger" style="margin-right: 30px;">Non seguire più</button>
-                    <!-- Pulsante per avviare una chat -->
-                    <a href="{{ url_for('chat', other_user_id=amico.id_utente) }}" class="btn btn-success">Inizia Chat</a>
+                {% if current_user.username != amico.username %}
+                    {% if seguendo %}
+                        <button type="submit" class="btn btn-danger" style="margin-right: 30px;">Non seguire più</button>
+                        <!-- Pulsante per avviare una chat -->
+                        <a href="{{ url_for('chat', other_user_id=amico.id_utente) }}" class="btn btn-success">Inizia chat</a>
+                    {% else %}
+                        <button type="submit" class="btn btn-primary">Segui</button>
+                    {% endif %}
                 {% else %}
-                    <button type="submit" class="btn btn-primary">Segui</button>
+                    Questo profilo è il tuo
                 {% endif %}
             </form>
             

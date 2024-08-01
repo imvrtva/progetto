@@ -24,7 +24,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'mov', 'avi', 'heic', 'mp4' }
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -54,7 +54,6 @@ class Sesso(Enum):
     femmina = "femmina"
     altro = "altro"
     tutti="tutti"
-
 
 class Users(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -105,11 +104,11 @@ class Users(UserMixin, db.Model):
         
     @property
     def follower_count(self):
-        return Amici.query.filter_by(user_amico=self.id_utente).count()
+        return Amicizia.query.filter_by(user_amico=self.id_utente).count()
 
     @property
     def following_count(self):
-        return Amici.query.filter_by(io_utente=self.id_utente).count()
+        return Amicizia.query.filter_by(io_utente=self.id_utente).count()
 
     @property
     def post_count(self):
@@ -151,7 +150,7 @@ class UserInteressi(db.Model, UserMixin):
         self.utente_id = utente_id
         self.id_interessi = id_interessi
 
-class Amici(db.Model, UserMixin):
+class Amicizia(db.Model, UserMixin):
     __tablename__ = 'amici'
 
     id_amicizia= Column(Integer, primary_key=True, autoincrement=True)
@@ -164,7 +163,6 @@ class Amici(db.Model, UserMixin):
         self.io_utente = io_utente
         self.user_amico = user_amico
         self.seguito_at=seguito_at
-
 
 class Post(db.Model, UserMixin):
     __tablename__ = 'posts'
@@ -218,8 +216,7 @@ class PostLikes(db.Model, UserMixin):
 
     def __init__(self, post_id, utente_id):
         self.post_id = post_id
-        self.utente_id = utente_id
-    
+        self.utente_id = utente_id  
 
 class Annunci(db.Model, UserMixin):
     __tablename__ = 'annunci'
@@ -275,8 +272,7 @@ class AnnunciComments(db.Model):
         self.annuncio_id = annuncio_id
         self.utente_id = utente_id
         self.content = content
-
-    
+   
 class AnnunciLikes(db.Model, UserMixin):
     __tablename__ = 'annunci_likes'
 
@@ -287,7 +283,6 @@ class AnnunciLikes(db.Model, UserMixin):
     def __init__(self, annuncio_id, utente_id):
         self.annuncio_id = annuncio_id
         self.utente_id = utente_id
-
 
 class Messaggi(db.Model):
     __tablename__ = 'messaggi'
@@ -316,76 +311,48 @@ class Messaggi(db.Model):
     def __repr__(self):
         return f"<Messaggio(id={self.id}, mittente_id={self.mittente_id}, destinatario_id={self.destinatario_id}, creato_at={self.creato_at})>"
 
-
 # Ensure all tables are created within the application context
 with app.app_context():
     db.create_all()
 
 #------------------------ funzioni utili -------------------------#
 
+## funzione per capire se il file ha una estensione corretta
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
-##controllo password
+## controllo password
 def check_password(password):
-    length_error = len(password) < 8
+    length_error = len(password) > 8
     digit_error = re.search(r"\d", password) is None
     uppercase_error = re.search(r"[A-Z]", password) is None
     lowercase_error = re.search(r"[a-z]", password) is None
 
     return not (length_error or digit_error or uppercase_error or lowercase_error)
 
-##controllo mail
+## controllo mail
 def check_email(email):
     regex_email = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+.[A-Z|a-z]{2,}\b'
     return not re.fullmatch(regex_email, email)
-
-## statistiche annuncio
-
-def get_annuncio_statistics(annuncio_id):
-    today = datetime.today().date()
-    yesterday = today - timedelta(days=1)
-
-    stats_today = {
-        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == today).count(),
-        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == today).count(),
-        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == today).count(),
-    }
-    
-    stats_yesterday = {
-        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciLikes.clicked_at) == yesterday).count(),
-        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciComments.created_at) == yesterday).count(),
-        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(func.date(AnnunciClicks.clicked_at) == yesterday).count(),
-    }
-
-    return {
-        'today': stats_today,
-        'yesterday': stats_yesterday,
-    }
-
-
-def prepare_chart_data(counts):
-    # Rimuovere la normalizzazione e restituire i conteggi grezzi
-    return [counts.get(date, 0) for date in date_range]
 
 #------------------------ rotte sito internet -------------------------#
 
     #------------------------ log in e log out, registrazione -------------------------#
 
-    ## login
-
+## login
 @app.route('/', methods=['GET', 'POST'])
 def log():
     if request.method == "POST":
-        email = request.form.get('email')
+        email_or_username = request.form.get('email_or_username')
         password = request.form.get('password')
 
-        if not email or not password:
-            flash("Email e password sono richiesti", category="alert alert-warning")
+        if not email_or_username or not password:
+            flash("Email/Username e password sono richiesti", category="alert alert-warning")
             return redirect(url_for('log'))
 
-        user = Users.query.filter_by(email=email).first()
+        # Query for user by email or username
+        user = Users.query.filter((Users.email == email_or_username) | (Users.username == email_or_username)).first()
+        
         if user and user.verify_password(password):
             login_user(user)
             session['id_utente'] = user.id_utente
@@ -396,13 +363,12 @@ def log():
             elif user.ruolo == Ruolo.pubblicitari:
                 return redirect(url_for('inserzionista', id_utente=user.id_utente))
         else:
-            flash("Email o password sbagliata", category="alert alert-warning")
+            flash("Email/Username o password sbagliata", category="alert alert-warning")
             return redirect(url_for('log'))
 
     return render_template('login.html')
-    
-## logout
 
+## logout
 @app.route('/logout')
 @login_required
 def logout():
@@ -413,7 +379,6 @@ def logout():
     return redirect(url_for('log'))
 
 ## registrazione
-
 @app.route('/registrazione', methods=['GET', 'POST'])
 def addprofile():
     if request.method == "POST":
@@ -466,7 +431,6 @@ def addprofile():
     return render_template('registrazione.html')
 
 ## aggiunta interessi
-
 @app.route('/interessi', methods=['GET', 'POST'])
 def interessi():
     if request.method == "GET":
@@ -510,8 +474,7 @@ def interessi():
 
 #------------------------------------------- home page sito ---------------------------------#
 
-    ## home page utente
-
+## home page utente
 @app.route('/homepage/utente/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def utente(id_utente):
@@ -522,7 +485,7 @@ def utente(id_utente):
         return redirect(url_for('log'))
 
     current_user_id = current_user.id_utente
-    seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+    seguiti_ids = [amico.user_amico for amico in Amicizia.query.filter_by(io_utente=current_user_id).all()]
     seguiti_ids.append(current_user_id)
 
     posts = Post.query.filter(Post.utente.in_(seguiti_ids)).order_by(Post.data_creazione.desc()).all()
@@ -556,8 +519,7 @@ def utente(id_utente):
 
     return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci, advertisers=advertisers)
 
-    ## home page inserzionista
-
+## home page inserzionista
 @app.route('/homepage/inserzionista/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def inserzionista(id_utente):
@@ -568,7 +530,7 @@ def inserzionista(id_utente):
     current_user_id = current_user.id_utente
     
     # Recupera gli utenti seguiti dall'utente corrente
-    seguiti_ids = [amico.user_amico for amico in Amici.query.filter_by(io_utente=current_user_id).all()]
+    seguiti_ids = [amico.user_amico for amico in Amicizia.query.filter_by(io_utente=current_user_id).all()]
     seguiti_ids.append(current_user_id)
     
     # Recupera i post degli utenti seguiti
@@ -581,13 +543,24 @@ def inserzionista(id_utente):
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
     
+    
+
     # Recupera gli annunci creati dall'utente corrente
     now = datetime.now()
     annunci = Annunci.query.filter(
         Annunci.advertiser_id == current_user_id,
         Annunci.fine > now
     ).order_by(Annunci.inizio.desc()).all()
-    
+    def get_time_ago(timestamp):
+        if timestamp is None:
+            return "Data non disponibile"
+        return humanize.naturaltime(now - timestamp)
+
+    for post in posts:
+        post.time_ago = get_time_ago(post.data_creazione)
+
+    for annuncio in annunci:
+        annuncio.time_ago = get_time_ago(annuncio.inizio)
     # Recupera gli utenti che hanno creato gli annunci
     advertisers = Users.query.filter_by(ruolo=Ruolo.pubblicitari).all()
     
@@ -600,11 +573,9 @@ def inserzionista(id_utente):
     
     return render_template('home_inserzionista.html', today=today, user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, advertisers=advertisers)
 
-
-
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
-    ## pagina profilo utente
 
+## pagina profilo utente
 @app.route('/profilo', methods=['GET', 'POST'])
 @login_required
 def profilo():
@@ -614,8 +585,7 @@ def profilo():
     
     return render_template('profilo_io.html', user=user, posts=posts)
 
-    ## modificare il profilo
-
+## modificare il profilo
 @app.route('/modifica', methods=['GET', 'POST'])
 @login_required
 def modifica_profilo():
@@ -675,11 +645,9 @@ def modifica_profilo():
 
     return render_template('modifica_profilo.html', user=user, interessi=interessi, user_interessi=user_interessi)
 
-
 #------------------------------ pubblicazione post -------------------------------#
 
-    ## scelta di cosa pubblicare
-
+## scelta di cosa pubblicare
 @app.route('/scegli_post', methods=['GET', 'POST'])
 def scegli_post():
     user = current_user
@@ -688,8 +656,7 @@ def scegli_post():
     
     return render_template('scelta_post.html',is_pubblicitario=is_pubblicitario)
 
-    ## pubblicazione testo
- 
+## pubblicazione testo
 @app.route('/pubblica_testo', methods=['GET', 'POST'])
 @login_required
 def pubblica_testo():
@@ -701,24 +668,40 @@ def pubblica_testo():
         return redirect(url_for('utente', id_utente=current_user.id_utente))
     return render_template('pubblicazione_testo.html')
 
-    ## pubblicazione video
-
+## pubblicazione video
 @app.route('/pubblica_video', methods=['GET', 'POST'])
 @login_required
 def pubblica_video():
     if request.method == 'POST':
-        video = request.files['video']
-        testo = request.form['testo']
-        nome_file = 'contenuti' + video.filename  # Modificare il percorso per salvare il video
-        video.save(nome_file)
-        nuovo_post = Post(utente=current_user.id_utente, tipo_post='video', testo=testo, media=nome_file)
-        db.session.add(nuovo_post)
-        db.session.commit()
-        return redirect(url_for('utente', id_utente=current_user.id_utente))
+        video = request.files.get('video')
+        testo = request.form.get('testo')
+        
+        if video and testo:
+            # Ensure the 'contenuti' directory exists
+            contenuti_path = os.path.join(current_app.root_path, 'contenuti')
+            if not os.path.exists(contenuti_path):
+                os.makedirs(contenuti_path)
+            
+            # Construct the full file path
+            nome_file = os.path.join(contenuti_path, video.filename)
+            
+            # Save the video to the 'contenuti' directory
+            try:
+                video.save(nome_file)
+            except Exception as e:
+                # Handle the error (e.g., log it)
+                return str(e), 500
+            
+            # Create a new post entry in the database
+            nuovo_post = Post(utente=current_user.id_utente, tipo_post='video', testo=testo, media=video.filename)
+            db.session.add(nuovo_post)
+            db.session.commit()
+            
+            return redirect(url_for('utente', id_utente=current_user.id_utente))
+    
     return render_template('pubblicazione_video.html')
 
-    ## pubblicazione immagine
-
+## pubblicazione immagine
 @app.route('/pubblica_immagini', methods=['GET', 'POST'])
 @login_required
 def pubblica_immagini():
@@ -746,13 +729,14 @@ def pubblica_immagini():
     
     return render_template('pubblicazione_immagine.html')
 
+## salva i contenuti nella directory corretta
 @app.route('/contenuti/<filename>')
 def serve_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 #------------------------------ vedere i post ed eliminarli -------------------------------#
 
 ## vedere post
-
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 @login_required
 def post_details(post_id):
@@ -769,7 +753,7 @@ def post_details(post_id):
     liked = PostLikes.query.filter_by(post_id=post_id, utente_id=current_user.id_utente).first() is not None
 
     # Fetch the user's friends
-    friends = db.session.query(Users).join(Amici, Amici.user_amico == Users.id_utente).filter(Amici.io_utente == current_user.id_utente).all()
+    friends = db.session.query(Users).join(Amicizia, Amicizia.user_amico == Users.id_utente).filter(Amicizia.io_utente == current_user.id_utente).all()
 
     if request.method == 'POST':
         if 'content' in request.form:
@@ -782,7 +766,6 @@ def post_details(post_id):
     return render_template('post.html', post=post, post_user=post_user, comments=comments, comment_users=comment_users, liked=liked, friends=friends)
     
 ## eliminare post
-
 @app.route('/elimina_post/<int:post_id>', methods=['POST'])
 @login_required
 def elimina_post(post_id):
@@ -801,7 +784,6 @@ def elimina_post(post_id):
     return redirect(url_for('utente', id_utente=current_user.id_utente))
 
 ## condividere post
-
 @app.route('/share_post/<int:post_id>/<int:friend_id>', methods=['POST'])
 def share_post(post_id, friend_id):
     if not current_user.is_authenticated:
@@ -821,11 +803,9 @@ def share_post(post_id, friend_id):
 
     return redirect(url_for('chat', other_user_id=friend_id))
 
-
 #------------------------------ inserire ed eliminare commenti -------------------------------#
 
 ## inserimento commenti
-
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
     post = Post.query.get_or_404(post_id)
@@ -837,7 +817,6 @@ def add_comment(post_id):
     return redirect(url_for('post_details', post_id=post_id))
 
 ## eliminare commenti
-
 @app.route('/delete_comment/<int:comment_id>', methods=['POST'])
 @login_required
 def delete_comment(comment_id):
@@ -854,7 +833,6 @@ def delete_comment(comment_id):
     db.session.commit()
     flash('Commento eliminato con successo.', 'success')
     return redirect(url_for('post_details', post_id=comment.post_id))
-
 
 #------------------------------ mettere e togliere mi piace -------------------------------#
 
@@ -878,12 +856,13 @@ def toggle_like(post_id):
 
 #------------------------------ Notifiche -------------------------------#
 
+## funzione per prendere i commmenti e i like dei post/annunci pubblicati
 @app.route('/notifiche', methods=['GET'])
 @login_required
 def notifiche():
     user_id = current_user.id_utente
 
-    # Recuperare i like ricevuti
+    # Recuperare i like ricevuti sui post
     like_notifiche = db.session.query(PostLikes, Post, Users)\
         .join(Post, PostLikes.post_id == Post.id)\
         .join(Users, PostLikes.utente_id == Users.id_utente)\
@@ -891,7 +870,7 @@ def notifiche():
         .filter(PostLikes.utente_id != user_id)\
         .all()
 
-    # Recuperare i commenti ricevuti
+    # Recuperare i commenti ricevuti sui post
     comment_notifiche = db.session.query(PostComments, Post, Users)\
         .join(Post, PostComments.post_id == Post.id)\
         .join(Users, PostComments.utente_id == Users.id_utente)\
@@ -899,16 +878,32 @@ def notifiche():
         .filter(PostComments.utente_id != user_id)\
         .all()
 
+    # Recuperare i like sugli annunci
+    annuncio_like_notifiche = db.session.query(AnnunciLikes, Annunci, Users)\
+        .join(Annunci, AnnunciLikes.annuncio_id == Annunci.id)\
+        .join(Users, AnnunciLikes.utente_id == Users.id_utente)\
+        .filter(Annunci.advertiser_id == user_id)\
+        .filter(AnnunciLikes.utente_id != user_id)\
+        .all()
+
+    # Recuperare i commenti sugli annunci
+    annuncio_comment_notifiche = db.session.query(AnnunciComments, Annunci, Users)\
+        .join(Annunci, AnnunciComments.annuncio_id == Annunci.id)\
+        .join(Users, AnnunciComments.utente_id == Users.id_utente)\
+        .filter(Annunci.advertiser_id == user_id)\
+        .filter(AnnunciComments.utente_id != user_id)\
+        .all()
+
     # Recuperare le richieste di amicizia
-    friend_requests = db.session.query(Amici, Users)\
-        .join(Users, Amici.io_utente == Users.id_utente)\
-        .filter(Amici.user_amico == user_id)\
+    friend_requests = db.session.query(Amicizia, Users)\
+        .join(Users, Amicizia.io_utente == Users.id_utente)\
+        .filter(Amicizia.user_amico == user_id)\
         .all()
 
     # Creare una lista di notifiche combinata
     all_notifications = []
 
-    # Aggiungere le notifiche di like
+    # Aggiungere le notifiche di like sui post
     for post_like, post, user in like_notifiche:
         all_notifications.append({
             'type': 'like',
@@ -918,7 +913,7 @@ def notifiche():
             'time_ago': time_since(post_like.clicked_at)
         })
 
-    # Aggiungere le notifiche di commento
+    # Aggiungere le notifiche di commento sui post
     for comment, post, user in comment_notifiche:
         all_notifications.append({
             'type': 'comment',
@@ -927,6 +922,27 @@ def notifiche():
             'comment': comment,
             'timestamp': comment.created_at,
             'time_ago': time_since(comment.created_at)
+        })
+
+    # Aggiungere le notifiche di like sugli annunci
+    for annuncio_like, annuncio, user in annuncio_like_notifiche:
+        all_notifications.append({
+            'type': 'annuncio_like',
+            'user': user,
+            'annuncio': annuncio,
+            'timestamp': annuncio_like.clicked_at,
+            'time_ago': time_since(annuncio_like.clicked_at)
+        })
+
+    # Aggiungere le notifiche di commento sugli annunci
+    for annuncio_comment, annuncio, user in annuncio_comment_notifiche:
+        all_notifications.append({
+            'type': 'annuncio_comment',
+            'user': user,
+            'annuncio': annuncio,
+            'comment': annuncio_comment,
+            'timestamp': annuncio_comment.created_at,
+            'time_ago': time_since(annuncio_comment.created_at)
         })
 
     # Aggiungere le notifiche di nuovi follower
@@ -944,7 +960,6 @@ def notifiche():
     return render_template('notifiche.html', all_notifications=all_notifications)
 
 ## funzione per l'orario di arrivo delle notifiche
-
 def time_since(post_time):
     # Definire il fuso orario italiano
     italian_tz = pytz.timezone('Europe/Rome')
@@ -968,7 +983,6 @@ def time_since(post_time):
 #------------------------------ ricerca utente e visualizzazione profilo -------------------------------#
 
 ## ricerca utente
-
 @app.route('/search_suggestions')
 @login_required
 def search_suggestions():
@@ -988,9 +1002,7 @@ def search_suggestions():
         'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
     })
 
-
 ## visualizzazione profilo
-
 @app.route('/profilo_amico/<int:id_amico>', methods=['GET', 'POST'])
 @login_required
 def profilo_amico(id_amico):
@@ -998,7 +1010,7 @@ def profilo_amico(id_amico):
     if not amico:
         return "Utente non trovato", 404
 
-    amicizia = Amici.query.filter_by(io_utente=current_user.id_utente, user_amico=id_amico).first()
+    amicizia = Amicizia.query.filter_by(io_utente=current_user.id_utente, user_amico=id_amico).first()
 
     if request.method == 'POST':
         if amicizia:
@@ -1006,7 +1018,7 @@ def profilo_amico(id_amico):
             db.session.delete(amicizia)
         else:
             # Altrimenti, crea una nuova amicizia
-            amicizia = Amici(io_utente=current_user.id_utente, user_amico=id_amico)
+            amicizia = Amicizia(io_utente=current_user.id_utente, user_amico=id_amico)
             db.session.add(amicizia)
         db.session.commit()
         return redirect(url_for('profilo_amico', id_amico=id_amico))
@@ -1020,30 +1032,27 @@ def profilo_amico(id_amico):
 
 #------------------------------- FOLLOWER, SEGUITI, E RIMUOVERE AMICI/SEGUITI ---------------------------------#
 
-    ## vedere elenco follower
-
+## vedere elenco follower
 @app.route('/lista_follower/<int:user_id>')
 @login_required
 def followers_list(user_id):
     if user_id != current_user.id_utente:
         abort(403)  # Forbidden access
 
-    followers = db.session.query(Users).join(Amici, Amici.io_utente == Users.id_utente).filter(Amici.user_amico == user_id).all()
+    followers = db.session.query(Users).join(Amicizia, Amicizia.io_utente == Users.id_utente).filter(Amicizia.user_amico == user_id).all()
     return render_template('lista_follower.html', followers=followers)
 
 ## vedere elenco seguiti
-
 @app.route('/lista_seguiti/<int:user_id>')
 @login_required
 def following_list(user_id):
     if user_id != current_user.id_utente:
         abort(403)  # Forbidden access
 
-    following = db.session.query(Users).join(Amici, Amici.user_amico == Users.id_utente).filter(Amici.io_utente == user_id).all()
+    following = db.session.query(Users).join(Amicizia, Amicizia.user_amico == Users.id_utente).filter(Amicizia.io_utente == user_id).all()
     return render_template('lista_seguiti.html', following=following)
 
 ## poter unfolloware una persona dall'elenco
-
 @app.route('/unfollow/<int:id_amico>', methods=['POST'])
 @login_required
 def unfollow(id_amico):
@@ -1051,7 +1060,7 @@ def unfollow(id_amico):
     user_id = current_user.id_utente
 
     # Trova la relazione di amicizia che deve essere rimossa
-    amicizia = Amici.query.filter_by(io_utente=user_id, user_amico=id_amico).first()
+    amicizia = Amicizia.query.filter_by(io_utente=user_id, user_amico=id_amico).first()
     
     if amicizia:
         # Rimuovi la relazione di amicizia
@@ -1064,7 +1073,6 @@ def unfollow(id_amico):
     return redirect(url_for('following_list', user_id=user_id))  # Redirige alla pagina dei seguiti
 
 ## poter togliere un follower dall'elenco
-
 @app.route('/remove_follower/<int:id_follower>', methods=['POST'])
 @login_required
 def remove_follower(id_follower):
@@ -1072,7 +1080,7 @@ def remove_follower(id_follower):
     user_id = current_user.id_utente
 
     # Trova la relazione di amicizia che deve essere rimossa
-    follower_relation = Amici.query.filter_by(io_utente=id_follower, user_amico=user_id).first()
+    follower_relation = Amicizia.query.filter_by(io_utente=id_follower, user_amico=user_id).first()
     
     if follower_relation:
         # Rimuovi la relazione di amicizia
@@ -1088,7 +1096,6 @@ def remove_follower(id_follower):
 #------------------------------- chat tra amici ---------------------------------#
 
 ## elenco delle conversazioni
-
 @app.route('/conversations')
 def conversations():
     if not current_user.is_authenticated:
@@ -1116,7 +1123,6 @@ def conversations():
     return render_template('conversations.html', conversations=conversations, users=users)
 
 ## chat tra amici
-
 @app.route('/chat/<int:other_user_id>', methods=['GET', 'POST'])
 def chat(other_user_id):
     if not current_user.is_authenticated:
@@ -1162,7 +1168,7 @@ def chat(other_user_id):
 
     return render_template('chat.html', messages=messages, user=user, users=users, posts=posts, other_user_id=other_user_id)
 
-
+## invio messaggi in chat
 @app.route('/send_message/<int:other_user_id>', methods=['POST'])
 def send_message(other_user_id):
     # Your logic to handle sending the message
@@ -1173,11 +1179,9 @@ def send_message(other_user_id):
     db.session.commit()
     return redirect(url_for('chat', user_id=other_user_id))
 
-
-#------------------------------- Annunci ---------------------------------#
+#------------------------------- Pubblicazione annunci ---------------------------------#
 
 ##pubblicare annuncio
-
 @app.route('/pubblica_annuncio', methods=['GET', 'POST'])
 @login_required
 def pubblica_annuncio():
@@ -1240,31 +1244,9 @@ def pubblica_annuncio():
     interessi = Interessi.query.all()
     return render_template('pubblica_annuncio.html', interessi=interessi)
 
+#------------------------------- Interagire con gli annunci ---------------------------------#
 
-## annunci dedicati all'utente
-
-def recupera_annunci_utente(current_user_id):
-    now = datetime.now()
-    
-    # Recupera l'utente corrente
-    current_user = Users.query.get(current_user_id)
-    
-    # Recupera gli interessi dell'utente corrente
-    interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
-    interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
-
-    # Recupera gli annunci che non sono scaduti e che sono destinati all'utente corrente
-    annunci = Annunci.query.filter(
-        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Annunci con interessi che corrispondono o senza target specificato
-        ((Annunci.sesso_target == current_user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
-        (Annunci.eta_target >= current_user.eta),
-        Annunci.fine > now
-    ).order_by(Annunci.fine.desc()).all()
-    
-    return annunci
-
-## aggiungi commenti
-
+## aggiungi commenti negli annunci
 @app.route('/annuncio/<int:annuncio_id>/comment', methods=['POST'])
 def add_comment_annuncio(annuncio_id):
     # Recupera l'annuncio con l'ID fornito
@@ -1291,60 +1273,49 @@ def add_comment_annuncio(annuncio_id):
     # Reindirizza alla pagina dei dettagli dell'annuncio
     return redirect(url_for('recupera_statistiche_annuncio', annuncio_id=annuncio_id))
 
-## statistiche degli annunci
-
-def recupera_statistiche_annuncio(annuncio_id):
-    today = datetime.today().date()
-    yesterday = today - timedelta(days=1)
-    
-    today_stats = {
-        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciLikes.clicked_at >= today).count(),
-        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciComments.created_at >= today).count(),
-        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciClicks.clicked_at >= today).count(),
-    }
-    
-    yesterday_stats = {
-        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciLikes.clicked_at >= yesterday, AnnunciLikes.clicked_at < today).count(),
-        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciComments.created_at >= yesterday, AnnunciComments.created_at < today).count(),
-        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciClicks.clicked_at >= yesterday, AnnunciClicks.clicked_at < today).count(),
-    }
-    
-    return {'today': today_stats, 'yesterday': yesterday_stats}
-
-"""
-@app.route('/insight')
-@login_required
-def insight():
-    
-    return render_template('insight.html')
-"""
-
-@app.route('/annuncio_details/<int:annuncio_id>')
-def annuncio_details(annuncio_id):
+@app.route('/toggle_like_annuncio/<int:annuncio_id>', methods=['POST'])
+def toggle_like_annuncio(annuncio_id):
     annuncio = Annunci.query.get_or_404(annuncio_id)
-    annuncio_user = Users.query.get(annuncio.advertiser_id)
+    user = current_user  # Assumendo che stai usando Flask-Login
+    like = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=user.id_utente).first()
+    if like:
+        # Se l'utente ha già messo like, lo rimuove
+        db.session.delete(like)
+        db.session.commit()
+    else:
+        # Altrimenti, aggiunge il like
+        like = AnnunciLikes(annuncio_id=annuncio_id, utente_id=user.id_utente)
+        db.session.add(like)
+        db.session.commit()
     
-    friends = Users.query.join(Amici, (Amici.user_amico == Users.id_utente)).filter(Amici.io_utente == current_user.id_utente).all()
-    # Fetch statistics
-    likes = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).all()
-    comments = AnnunciComments.query.filter_by(annuncio_id=annuncio_id).all()
-    comment_users = {comment.utente_id: Users.query.get(comment.utente_id) for comment in comments}
-    # Prepare data for the charts
-    likes_count = len(likes)
-    is_liked = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=current_user.id_utente).first() is not None
+    return redirect(url_for('annuncio_details', annuncio_id=annuncio_id))
 
-    return render_template(
-        'annuncio_details.html',
-        annuncio=annuncio,
-        annuncio_user=annuncio_user,
-        likes_count=likes_count,
-        liked=is_liked,
-        comments=comments,
-        comment_users=comment_users,
-        firends=friends
-    )
+#------------------------------- Dedicare gli annunci agli utenti ---------------------------------#
 
+## annunci dedicati all'utente
+def recupera_annunci_utente(current_user_id):
+    now = datetime.now()
+    
+    # Recupera l'utente corrente
+    current_user = Users.query.get(current_user_id)
+    
+    # Recupera gli interessi dell'utente corrente
+    interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
+    interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
 
+    # Recupera gli annunci che non sono scaduti e che sono destinati all'utente corrente
+    annunci = Annunci.query.filter(
+        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),  # Annunci con interessi che corrispondono o senza target specificato
+        ((Annunci.sesso_target == current_user.sesso) | (Annunci.sesso_target == 'tutti')),  # Corrispondenza del sesso
+        (Annunci.eta_target >= current_user.eta),
+        Annunci.fine > now
+    ).order_by(Annunci.fine.desc()).all()
+    
+    return annunci
+
+#------------------------------- Insight ---------------------------------#
+
+## insight generali di tutti gli annunci
 @app.route('/insights/<int:advertiser_id>')
 def insight(advertiser_id):
     from datetime import datetime, timedelta
@@ -1388,181 +1359,24 @@ def insight(advertiser_id):
     
     return render_template('insight.html', advertiser=advertiser, insights=normalized_data)
 
-
-
-# Emit an update when a like is added
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-    # Emit initial data to the client
-    emit_initial_data()
-
-@socketio.on('new_like')
-def handle_new_like(data):
-    # Update the database and fetch the updated data
-    likes = get_likes_per_month(db.session, current_user.id_utente)
-    comments = get_comments_per_month(db.session, current_user.id_utente)
-    followers = get_followers_per_month(db.session, current_user.id_utente)
+## statistiche di un solo annuncio
+def recupera_statistiche_annuncio(annuncio_id):
+    today = datetime.today().date()
+    yesterday = today - timedelta(days=1)
     
-    # Emit updated data to the client
-    socketio.emit('update', {
-        'likes': likes,
-        'comments': comments,
-        'followers': followers
-    })
-
-def emit_initial_data():
-    # This function emits initial data to the client when they connect
-    likes = get_likes_per_month(db.session, current_user.id_utente)
-    comments = get_comments_per_month(db.session, current_user.id_utente)
-    followers = get_followers_per_month(db.session, current_user.id_utente)
+    today_stats = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciLikes.clicked_at >= today).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciComments.created_at >= today).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciClicks.clicked_at >= today).count(),
+    }
     
-    socketio.emit('update', {
-        'likes': likes,
-        'comments': comments,
-        'followers': followers
-    })
-
-def get_likes_per_month(session, user_id):
-    start_date = datetime.today().replace(day=1)
-    end_date = (start_date + timedelta(days=32)).replace(day=1)
+    yesterday_stats = {
+        'likes_count': AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciLikes.clicked_at >= yesterday, AnnunciLikes.clicked_at < today).count(),
+        'comments_count': AnnunciComments.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciComments.created_at >= yesterday, AnnunciComments.created_at < today).count(),
+        'clicks_count': AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).filter(AnnunciClicks.clicked_at >= yesterday, AnnunciClicks.clicked_at < today).count(),
+    }
     
-    results = session.query(
-        func.date_trunc('day', PostLikes.clicked_at).label('date'),
-        func.count().label('count')
-    ).filter(
-        PostLikes.utente_id == user_id,
-        PostLikes.clicked_at >= start_date,
-        PostLikes.clicked_at < end_date
-    ).group_by('date').order_by('date').all()
-    
-    # Initialize list for daily counts
-    daily_counts = [0] * (end_date.day)
-    for date, count in results:
-        day = date.day
-        if 1 <= day <= len(daily_counts):
-            daily_counts[day - 1] = count
-    
-    return daily_counts
-
-def get_comments_per_month(session, user_id):
-    start_date = datetime.today().replace(day=1)
-    end_date = (start_date + timedelta(days=32)).replace(day=1)
-    
-    results = session.query(
-        func.date_trunc('day', PostComments.created_at).label('date'),
-        func.count().label('count')
-    ).filter(
-        PostComments.utente_id == user_id,
-        PostComments.created_at >= start_date,
-        PostComments.created_at < end_date
-    ).group_by('date').order_by('date').all()
-    
-    # Initialize list for daily counts
-    daily_counts = [0] * (end_date.day)
-    for date, count in results:
-        day = date.day
-        if 1 <= day <= len(daily_counts):
-            daily_counts[day - 1] = count
-    
-    return daily_counts
-
-def get_followers_per_month(session, user_id):
-    start_date = datetime.today().replace(day=1)
-    end_date = (start_date + timedelta(days=32)).replace(day=1)
-    
-    results = session.query(
-        func.date_trunc('day', Amici.seguito_at).label('date'),
-        func.count().label('count')
-    ).filter(
-        Amici.user_amico == user_id,
-        Amici.seguito_at >= start_date,
-        Amici.seguito_at < end_date
-    ).group_by('date').order_by('date').all()
-    
-    # Initialize list for daily counts
-    daily_counts = [0] * (end_date.day)
-    for date, count in results:
-        day = date.day
-        if 1 <= day <= len(daily_counts):
-            daily_counts[day - 1] = count
-    
-    return daily_counts
-
-@app.route('/toggle_like_annuncio/<int:annuncio_id>', methods=['POST'])
-def toggle_like_annuncio(annuncio_id):
-    annuncio = Annunci.query.get_or_404(annuncio_id)
-    user = current_user  # Assumendo che stai usando Flask-Login
-    like = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=user.id_utente).first()
-    if like:
-        # Se l'utente ha già messo like, lo rimuove
-        db.session.delete(like)
-        db.session.commit()
-    else:
-        # Altrimenti, aggiunge il like
-        like = AnnunciLikes(annuncio_id=annuncio_id, utente_id=user.id_utente)
-        db.session.add(like)
-        db.session.commit()
-    
-    return redirect(url_for('annuncio_details', annuncio_id=annuncio_id))
-
-@app.route('/add_comment_annunci/<int:annuncio_id>', methods=['POST'])
-@login_required
-def add_comment_annunci(annuncio_id):
-    annuncio = Annunci.query.get_or_404(annuncio_id)
-    content = request.form['content']
-    
-    new_comment = AnnunciComments(
-        annuncio_id=annuncio_id,
-        utente_id=current_user.id_utente,
-        content=content
-    )
-    db.session.add(new_comment)
-    db.session.commit()
-    
-    return redirect(url_for('annuncio_details', annuncio_id=annuncio_id))
-
-@app.route('/delete_comment_annunci/<int:comment_id>', methods=['POST'])
-@login_required
-def delete_comment_annunci(comment_id):
-    # Recupera il commento dalla tabella AnnunciComments
-    comment = AnnunciComments.query.get(comment_id)
-    if comment is None:
-        flash('Commento non trovato.', 'danger')
-        return redirect(url_for('annuncio_details', annuncio_id=1))  # Modifica qui per usare un ID di annuncio valido o un valore predefinito
-
-    # Verifica se l'utente corrente è autorizzato ad eliminare il commento
-    if comment.utente_id != current_user.id_utente and \
-       Annunci.query.get(comment.annuncio_id).advertiser_id != current_user.id_utente:
-        flash('Non hai il permesso per eliminare questo commento.', 'danger')
-        return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
-
-    # Elimina il commento e conferma la transazione
-    db.session.delete(comment)
-    db.session.commit()
-    flash('Commento eliminato con successo.', 'success')
-    return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
-
-@app.route('/elimina_annuncio/<int:annuncio_id>', methods=['POST'])
-@login_required
-def elimina_annuncio(annuncio_id):
-    # Recupera l'annuncio con l'ID specificato
-    annuncio = Annunci.query.get_or_404(annuncio_id)
-    # Verifica se l'utente corrente è l'autore dell'annuncio
-    if annuncio.advertiser_id != current_user.id_utente:
-        flash("Non sei autorizzato a eliminare questo annuncio.", category="alert alert-danger")
-        return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
-    # Elimina i like associati all'annuncio
-    PostLikes.query.filter_by(post_id=annuncio_id).delete()
-    
-    # Elimina i click associati all'annuncio
-    AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).delete()
-    
-    # Elimina l'annuncio
-    db.session.delete(annuncio)
-    db.session.commit()
-    flash("Annuncio eliminato con successo.", category="alert alert-success")
-    return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
+    return {'today': today_stats, 'yesterday': yesterday_stats}
 
 @app.route('/register_click', methods=['POST'])
 @login_required
@@ -1596,11 +1410,97 @@ def register_click():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+#------------------------------- Vedere ed eliminare l'annuncio ---------------------------------#
+
+## vedere l'annuncio
+@app.route('/annuncio_details/<int:annuncio_id>')
+def annuncio_details(annuncio_id):
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    annuncio_user = Users.query.get(annuncio.advertiser_id)
+    
+    friends = Users.query.join(Amicizia, (Amicizia.user_amico == Users.id_utente)).filter(Amicizia.io_utente == current_user.id_utente).all()
+    # Fetch statistics
+    likes = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id).all()
+    comments = AnnunciComments.query.filter_by(annuncio_id=annuncio_id).all()
+    comment_users = {comment.utente_id: Users.query.get(comment.utente_id) for comment in comments}
+    # Prepare data for the charts
+    likes_count = len(likes)
+    is_liked = AnnunciLikes.query.filter_by(annuncio_id=annuncio_id, utente_id=current_user.id_utente).first() is not None
+
+    return render_template(
+        'annuncio_details.html',
+        annuncio=annuncio,
+        annuncio_user=annuncio_user,
+        likes_count=likes_count,
+        liked=is_liked,
+        comments=comments,
+        comment_users=comment_users,
+        firends=friends
+    )
+
+## eliminare l'annuncio
+@app.route('/elimina_annuncio/<int:annuncio_id>', methods=['POST'])
+@login_required
+def elimina_annuncio(annuncio_id):
+    # Recupera l'annuncio con l'ID specificato
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    # Verifica se l'utente corrente è l'autore dell'annuncio
+    if annuncio.advertiser_id != current_user.id_utente:
+        flash("Non sei autorizzato a eliminare questo annuncio.", category="alert alert-danger")
+        return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
+    # Elimina i like associati all'annuncio
+    PostLikes.query.filter_by(post_id=annuncio_id).delete()
+    
+    # Elimina i click associati all'annuncio
+    AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).delete()
+    
+    # Elimina l'annuncio
+    db.session.delete(annuncio)
+    db.session.commit()
+    flash("Annuncio eliminato con successo.", category="alert alert-success")
+    return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
+
+#------------------------------- Interazioni annuncio ---------------------------------#
+
+## aggiungi commenti annunci
+@app.route('/add_comment_annunci/<int:annuncio_id>', methods=['POST'])
+@login_required
+def add_comment_annunci(annuncio_id):
+    annuncio = Annunci.query.get_or_404(annuncio_id)
+    content = request.form['content']
+    
+    new_comment = AnnunciComments(
+        annuncio_id=annuncio_id,
+        utente_id=current_user.id_utente,
+        content=content
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+    
+    return redirect(url_for('annuncio_details', annuncio_id=annuncio_id))
+
+#elimina commenti annunci
+@app.route('/delete_comment_annunci/<int:comment_id>', methods=['POST'])
+@login_required
+def delete_comment_annunci(comment_id):
+    # Recupera il commento dalla tabella AnnunciComments
+    comment = AnnunciComments.query.get(comment_id)
+    if comment is None:
+        flash('Commento non trovato.', 'danger')
+        return redirect(url_for('annuncio_details', annuncio_id=1))  # Modifica qui per usare un ID di annuncio valido o un valore predefinito
+
+    # Verifica se l'utente corrente è autorizzato ad eliminare il commento
+    if comment.utente_id != current_user.id_utente and \
+       Annunci.query.get(comment.annuncio_id).advertiser_id != current_user.id_utente:
+        flash('Non hai il permesso per eliminare questo commento.', 'danger')
+        return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
+
+    # Elimina il commento e conferma la transazione
+    db.session.delete(comment)
+    db.session.commit()
+    flash('Commento eliminato con successo.', 'success')
+    return redirect(url_for('annuncio_details', annuncio_id=comment.annuncio_id))
 
 # Inizializzazione dell'applicazione
 if __name__ == '__main__':
     socketio.run(app, debug=True)
-
-
-if __name__ == '__main__':
-    app.run(debug=True)

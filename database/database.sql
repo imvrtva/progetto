@@ -1,25 +1,24 @@
 CREATE TYPE ruolo AS ENUM('utente', 'pubblicitari');
 CREATE TYPE tipo_post AS ENUM('immagini', 'video', 'testo');
-CREATE TYPE sesso AS ENUM('maschio', 'femmina', 'altro');
-
+CREATE TYPE sesso AS ENUM('maschio', 'femmina', 'altro', 'tutti');
 
 CREATE TABLE users (
     id_utente SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    immagine BYTEA,  -- Utilizzo di BYTEA invece di BLOB su PostgreSQL
+    immagine VARCHAR(100),  -- Modificato per corrispondere a immagine VARCHAR
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
-    password_hash VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
+    password_ VARCHAR(150) NOT NULL,  -- Modificato per corrispondere a password_ VARCHAR
+    email VARCHAR(150) UNIQUE NOT NULL,
     sesso sesso,
     eta INTEGER NOT NULL,
-    ruolo ruolo
+    ruolo ruolo,
+    bio VARCHAR(250)  -- Aggiunto per corrispondere a bio
 );
-
 
 CREATE TABLE interessi (
     id_interessi SERIAL PRIMARY KEY,
-    nome VARCHAR(50)
+    nome VARCHAR(50) NOT NULL  -- Aggiunto NOT NULL per corrispondere al modello
 );
 
 CREATE TABLE user_interessi (
@@ -28,91 +27,82 @@ CREATE TABLE user_interessi (
     PRIMARY KEY (utente_id, id_interessi)
 );
 
-
-CREATE TABLE amici (
+CREATE TABLE amicizia (
     id_amicizia SERIAL PRIMARY KEY,
     io_utente INTEGER REFERENCES users(id_utente),
     user_amico INTEGER REFERENCES users(id_utente),
-    seguito_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    seguito_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-
 
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
     utente INTEGER REFERENCES users(id_utente),
-    media BYTEA,
+    media VARCHAR(255),  -- Modificato per corrispondere a media VARCHAR
     tipo_post tipo_post,
-    data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     testo TEXT
 );
-
-
 
 CREATE TABLE post_comments (
     id SERIAL PRIMARY KEY,
     post_id INTEGER REFERENCES posts(id),
     utente_id INTEGER REFERENCES users(id_utente),
     content TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-
 
 CREATE TABLE post_likes (
     post_id INTEGER REFERENCES posts(id),
     utente_id INTEGER REFERENCES users(id_utente),
-    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     PRIMARY KEY (post_id, utente_id)
 );
-
 
 CREATE TABLE annunci (
     id SERIAL PRIMARY KEY,
     advertiser_id INTEGER REFERENCES users(id_utente),
     tipo_post tipo_post,
     sesso_target sesso,
-    eta_target INTEGER,
+    eta_target INTEGER NOT NULL,
     interesse_target INTEGER REFERENCES interessi(id_interessi),
-    inizio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    inizio TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     fine DATE,
     media VARCHAR(255),
-    testo VARCHAR(255)
+    testo VARCHAR(255),
+    titolo VARCHAR(255),  -- Aggiunto titolo
+    link VARCHAR(200)  -- Aggiunto link
 );
 
 CREATE TABLE annunci_likes (
     annuncio_id INTEGER REFERENCES annunci(id),
     utente_id INTEGER REFERENCES users(id_utente),
-    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     PRIMARY KEY (annuncio_id, utente_id)
 );
-
 
 CREATE TABLE annunci_comments (
     id SERIAL PRIMARY KEY,
     annuncio_id INTEGER REFERENCES annunci(id),
     utente_id INTEGER REFERENCES users(id_utente),
     content TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-
-CREATE TABLE target (
-    id SERIAL PRIMARY KEY,
-    sesso sesso,
-    eta INTEGER,
-    interesse INTEGER REFERENCES interessi(id_interessi)
+CREATE TABLE annunci_clicks (
+    annuncio_id INTEGER REFERENCES annunci(id),
+    utente_id INTEGER REFERENCES users(id_utente),
+    clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (annuncio_id, utente_id)
 );
 
 CREATE TABLE messaggi (
     id SERIAL PRIMARY KEY,
     testo TEXT NOT NULL,
-    mittente_id INTEGER NOT NULL,
-    destinatario_id INTEGER NOT NULL,
+    mittente_id INTEGER NOT NULL REFERENCES users(id_utente) ON DELETE CASCADE,
+    destinatario_id INTEGER NOT NULL REFERENCES users(id_utente) ON DELETE CASCADE,
     creato_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    FOREIGN KEY (mittente_id) REFERENCES users(id_utente) ON DELETE CASCADE,
-    FOREIGN KEY (destinatario_id) REFERENCES users(id_utente) ON DELETE CASCADE
+    postinviato INTEGER REFERENCES posts(id)  -- Aggiunto riferimento a postinviato
 );
-
-
 
 
 /*TRIGGHER*/
@@ -204,3 +194,95 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER delete_user_followers_cascade
 BEFORE DELETE ON users
 FOR EACH ROW EXECUTE FUNCTION cascade_delete_user_followers();
+
+/*---------------------------------------------------------------------------*/
+
+--Trigger per aggiornare seguito_at nella tabella amici quando viene creata una nuova amicizia:
+CREATE OR REPLACE FUNCTION update_seguito_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.seguito_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_seguito_at
+BEFORE INSERT ON amici
+FOR EACH ROW
+EXECUTE FUNCTION update_seguito_at();
+
+/*---------------------------------------------------------------------------*/
+
+--Trigger per aggiornare created_at nella tabella post_comments e annunci_comments quando viene aggiunto un nuovo commento:
+CREATE OR REPLACE FUNCTION update_created_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.created_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_post_comment_created_at
+BEFORE INSERT ON post_comments
+FOR EACH ROW
+EXECUTE FUNCTION update_created_at();
+
+CREATE TRIGGER set_annuncio_comment_created_at
+BEFORE INSERT ON annunci_comments
+FOR EACH ROW
+EXECUTE FUNCTION update_created_at();
+
+/*---------------------------------------------------------------------------*/
+
+--trigger per assicurarsi che l'età sia un valore positivo nella tabella users:
+CREATE OR REPLACE FUNCTION check_eta()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.eta <= 0 THEN
+        RAISE EXCEPTION 'L''età deve essere un valore positivo';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_eta_positive
+BEFORE INSERT OR UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION check_eta();
+
+/*---------------------------------------------------------------------------*/
+
+--Trigger per garantire che fine sia sempre successiva a inizio nella tabella annunci:
+CREATE OR REPLACE FUNCTION check_annuncio_dates()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.fine <= NEW.inizio THEN
+        RAISE EXCEPTION 'La data di fine deve essere successiva alla data di inizio';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_dates
+BEFORE INSERT OR UPDATE ON annunci
+FOR EACH ROW
+EXECUTE FUNCTION check_annuncio_dates();
+
+/*---------------------------------------------------------------------------*/
+
+--Trigger per prevenire la creazione di amicizie duplicate nella tabella amici:
+CREATE OR REPLACE FUNCTION prevent_duplicate_amicizia()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM amici WHERE (io_utente = NEW.io_utente AND user_amico = NEW.user_amico) OR (io_utente = NEW.user_amico AND user_amico = NEW.io_utente)) THEN
+        RAISE EXCEPTION 'Questa amicizia già esiste';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_duplicate_amicizia
+BEFORE INSERT ON amici
+FOR EACH ROW
+EXECUTE FUNCTION prevent_duplicate_amicizia();
+

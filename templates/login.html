@@ -1,3 +1,29 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="flash-message {{ category }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+<style>
+    .flash-message {
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .flash-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,17 +93,10 @@
 <body>
     <div class="login-container">
         <h2>Login</h2>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
         <form method="POST" action="{{ url_for('log') }}">
             <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" class="form-control" id="email" name="email" required>
+                <label for="email_or_username">Email o Username:</label>
+                <input type="text" class="form-control" id="email_or_username" name="email_or_username" required>
             </div>
             <div class="form-group">
                 <label for="password">Password:</label>

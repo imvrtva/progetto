@@ -1,3 +1,21 @@
+
+<style>
+    .flash-message {
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .flash-message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    .flash-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+</style>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,6 +81,24 @@
             margin-top: 1rem;
         }
 
+        .password-checklist {
+            margin-top: 1rem;
+            display: none; /* Nascondi la checklist all'inizio */
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 1rem;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .password-checklist li {
+            color: red;
+        }
+
+        .password-checklist li.valid {
+            color: green;
+            text-decoration: line-through;
+        }
     </style>
 </head>
 <body>
@@ -90,7 +126,16 @@
             </div>
             <div class="form-group">
                 <label for="password">Password:</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                <input type="password" class="form-control" id="password" name="password" required oninput="validatePassword()" onfocus="showChecklist()" onblur="hideChecklist()">
+                <div class="password-checklist" id="password-checklist">
+                    <ul>
+                        <li id="length">Almeno 8 caratteri</li>
+                        <li id="uppercase">Almeno una lettera maiuscola</li>
+                        <li id="lowercase">Almeno una lettera minuscola</li>
+                        <li id="number">Almeno un numero</li>
+                        <li id="special">Almeno un carattere speciale</li>
+                    </ul>
+                </div>
             </div>
             <div class="form-group">
                 <label for="cpassword">Conferma Password:</label>
@@ -127,5 +172,35 @@
     </div>
     <!-- Script Bootstrap 5 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function validatePassword() {
+            const password = document.getElementById('password').value;
+            const length = document.getElementById('length');
+            const uppercase = document.getElementById('uppercase');
+            const lowercase = document.getElementById('lowercase');
+            const number = document.getElementById('number');
+            const special = document.getElementById('special');
+
+            const lengthValid = password.length >= 8;
+            const uppercaseValid = /[A-Z]/.test(password);
+            const lowercaseValid = /[a-z]/.test(password);
+            const numberValid = /\d/.test(password);
+            const specialValid = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+            length.classList.toggle('valid', lengthValid);
+            uppercase.classList.toggle('valid', uppercaseValid);
+            lowercase.classList.toggle('valid', lowercaseValid);
+            number.classList.toggle('valid', numberValid);
+            special.classList.toggle('valid', specialValid);
+        }
+
+        function showChecklist() {
+            document.getElementById('password-checklist').style.display = 'block';
+        }
+
+        function hideChecklist() {
+            document.getElementById('password-checklist').style.display = 'none';
+        }
+    </script>
 </body>
 </html>

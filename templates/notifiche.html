@@ -79,6 +79,12 @@
                     {% elif notification.type == 'comment' %}
                         <h3><a href="{{ url_for('profilo_amico', id_amico=notification.user.id_utente) }}" class="user-name">{{ notification.user.username }}</a> ha commentato: "{{ notification.comment.content }}" su un tuo post: 
                         <a href="{{ url_for('post_details', post_id=notification.post.id) }}" class="notification-link">Visualizza post</a></h3>
+                    {% elif notification.type == 'annuncio_like' %}
+                        <h3><a href="{{ url_for('profilo_amico', id_amico=notification.user.id_utente) }}" class="user-name">{{ notification.user.username }}</a> ha messo like al tuo annuncio: 
+                        <a href="{{ url_for('annuncio_details', annuncio_id=notification.annuncio.id) }}" class="notification-link">Visualizza annuncio</a></h3>
+                    {% elif notification.type == 'annuncio_comment' %}
+                        <h3><a href="{{ url_for('profilo_amico', id_amico=notification.user.id_utente) }}" class="user-name">{{ notification.user.username }}</a> ha commentato: "{{ notification.comment.content }}" sul tuo annuncio: 
+                        <a href="{{ url_for('annuncio_details', annuncio_id=notification.annuncio.id) }}" class="notification-link">Visualizza annuncio</a></h3>
                     {% elif notification.type == 'follower' %}
                         <h3><a href="{{ url_for('profilo_amico', id_amico=notification.user.id_utente) }}" class="user-name">{{ notification.user.username }}</a> ti ha seguito</h3>
                     {% endif %}
