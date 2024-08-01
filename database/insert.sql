@@ -7,12 +7,23 @@ INSERT INTO users (id_utente, username, immagine, nome, cognome, password_, emai
 (5, 'utente4', 'rest.jpg', 'Giulia', 'Rossi', 'password654', 'giulia.rossi@example.com', 'femmina', 27, 'utente', 'Bio di Giulia Rossi');
 
 -- Inserimento interessi
-INSERT INTO interessi (id_interessi, nome) VALUES
-(1, 'Sport'),
-(2, 'Musica'),
-(3, 'Viaggi'),
-(4, 'Cibo'),
-(5, 'Tecnologia');
+INSERT INTO interessi (nome)
+VALUES 
+('Sport'),
+('Musica'),
+('Tecnologia'),
+('Cucina'),
+('Viaggi'),
+('Libri'),
+('Cinema'),
+('Arte'),
+('Giardinaggio'),
+('Fotografia'),
+('Fai da te'),
+('Moda'),
+('Storia'),
+('Giochi da tavolo'),
+('Politica');
 
 -- Inserimento user_interessi
 INSERT INTO user_interessi (utente_id, id_interessi) VALUES
