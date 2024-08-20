@@ -22,8 +22,8 @@ VALUES
 ('Fai da te'),
 ('Moda'),
 ('Storia'),
-('Giochi da tavolo'),
-('Politica');
+('Giochi da tavolo');
+
 
 -- Inserimento user_interessi
 INSERT INTO user_interessi (utente_id, id_interessi) VALUES
