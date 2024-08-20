@@ -175,7 +175,13 @@
         {% if annunci %}
             {% for annuncio in annunci %}
                 <div class="col-md-4 mb-4">
-                    <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" class="stretched-link">
+                    <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" 
+                    class="stretched-link" 
+                    data-id="{{ annuncio.id }}"
+                    onclick="registerClick({{ annuncio.id }})"></a>
+
+
+
                     <div class="annuncio-item card">
                         <div class="annuncio-header">
                             {% set advertiser_data = advertisers.get(annuncio.advertiser_id) %}
@@ -225,7 +231,7 @@
                                 <img src="{{ url_for('static', filename=user_data['immagine'] or 'default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ user_data['username'] }}">
                                 <div class="ms-2">
                                     <h5 class="card-title">@{{ user_data['username'] }}</h5>
-                                    <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di piÃ¹</a>{% endif %}</p>
+                                    <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di più</a>{% endif %}</p>
                                     {% if post.media %}
                                         {% if post.tipo_post == 'immagini' %}
                                             <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
@@ -238,69 +244,84 @@
                                     {% endif %}
                                 </div>
                             {% else %}
-                                <img src="{{ url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di Utente sconosciuto">
-                                <div class="ms-2">
-                                    <h5 class="card-title">Utente sconosciuto</h5>
-                                    <p class="card-text">{{ post.testo }}</p>
-                                </div>
+                                <p>Utente sconosciuto</p>
                             {% endif %}
                         </div>
                     </div>
                     <div class="card-footer text-muted">
-                        {{ post.time_ago }}
+                        Pubblicato il {{ post.data_creazione.strftime('%d-%m-%Y') }}
                     </div>
                 </div>
             </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>Non ci sono post al momento.</p>
+        <p>Non ci sono post dei tuoi amici.</p>
     {% endif %}
 </div>
 
 <script>
-    document.getElementById('search-input').addEventListener('input', function() {
-        const query = this.value;
-        const suggestionsBox = document.getElementById('suggestions');
-        
-        if (query.length < 2) {
-            suggestionsBox.innerHTML = '';
-            suggestionsBox.style.display = 'none';
-            return;
-        }
-        
-        fetch(`/search_suggestions?q=${encodeURIComponent(query)}`)
+    const searchInput = document.getElementById("search-input");
+    const suggestions = document.getElementById("suggestions");
+
+    searchInput.addEventListener("input", function() {
+        const query = searchInput.value.trim();
+
+        if (query.length >= 2) {
+            fetch(`/search_person`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ query: query })
+            })
             .then(response => response.json())
             .then(data => {
-                if (data.suggestions.length > 0) {
-                    suggestionsBox.innerHTML = data.suggestions
-                        .filter(user => user.id !== {{ current_user.id_utente }}) // Escludi l'utente corrente
-                        .map(user => 
-                            `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
-                        ).join('');
-                    suggestionsBox.style.display = 'block';
+                suggestions.innerHTML = "";
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        const suggestionItem = document.createElement("div");
+                        suggestionItem.classList.add("autocomplete-suggestion");
+                        suggestionItem.textContent = item.username;
+                        suggestionItem.addEventListener("click", function() {
+                            searchInput.value = item.username;
+                            suggestions.innerHTML = "";
+                        });
+                        suggestions.appendChild(suggestionItem);
+                    });
+                    suggestions.style.display = "block";
                 } else {
-                    suggestionsBox.innerHTML = '<div class="autocomplete-suggestion">Nessun risultato</div>';
-                    suggestionsBox.style.display = 'block';
+                    suggestions.style.display = "none";
                 }
-            })
-            .catch(error => console.error('Error fetching suggestions:', error));
-    });
-
-    document.getElementById('suggestions').addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('autocomplete-suggestion')) {
-            const userId = e.target.getAttribute('data-id');
-            window.location.href = `/profilo_amico/${userId}`;
+            });
+        } else {
+            suggestions.innerHTML = "";
+            suggestions.style.display = "none";
         }
     });
 
-    document.addEventListener('click', function(e) {
-        const suggestionsBox = document.getElementById('suggestions');
-        if (!document.getElementById('search').contains(e.target)) {
-            suggestionsBox.style.display = 'none';
+    document.addEventListener("click", function(event) {
+        if (!searchInput.contains(event.target)) {
+            suggestions.style.display = "none";
         }
     });
 
+    function registerClick(annuncioId) {
+        fetch(`/register_click`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ annuncio_id: annuncioId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Click registered:', data);
+        })
+        .catch(error => {
+            console.error('Error registering click:', error);
+        });
+    }
 </script>
-    
+
 {% endblock %}

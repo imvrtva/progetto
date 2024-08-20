@@ -104,6 +104,14 @@ CREATE TABLE messaggi (
     postinviato INTEGER REFERENCES posts(id)  -- Aggiunto riferimento a postinviato
 );
 
+CREATE TABLE annunci_budget (
+    id  SERIAL PRIMARY KEY,
+    annuncio_id INTEGER NOT NULL UNIQUE,
+    budget_totale FLOAT NOT NULL,
+    budget_rimanente FLOAT NOT NULL,
+    FOREIGN KEY (annuncio_id) REFERENCES annunci(id)
+);
+
 
 /*TRIGGHER*/
 

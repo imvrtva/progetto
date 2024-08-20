@@ -1,6 +1,6 @@
 from flask import Flask, request, url_for, redirect, render_template, flash, Blueprint, current_app,jsonify, session, send_from_directory, abort
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Text, BLOB, ForeignKey, TIMESTAMP, Date, func
+from sqlalchemy import Column, Integer, String, Text, BLOB, ForeignKey, TIMESTAMP, Date, func, Float
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
 from flask_bcrypt import Bcrypt
 from sqlalchemy.exc import IntegrityError
@@ -21,7 +21,7 @@ from flask_socketio import SocketIO
 app = Flask(__name__, static_folder='contenuti')
 app.config['SECRET_KEY'] = 'stringasegreta'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:saturno@localhost:5434/progetto'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:ciao@localhost:5433/progettobasi'
 UPLOAD_FOLDER = 'contenuti'
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'contenuti')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'mov', 'avi', 'heic', 'mp4' }
@@ -233,6 +233,7 @@ class Annunci(db.Model, UserMixin):
     testo = Column(String(255), nullable=True)  # Questo Ã¨ corretto
     titolo = Column(String(255), nullable=True)  # Nuovo campo per il titolo 
     link = db.Column(db.String(200), nullable=True) 
+    budget = relationship('AnnunciBudget', backref='annuncios', uselist=False, lazy='joined')
 
     def __init__(self, advertiser_id, tipo_post, sesso_target, eta_target, interesse_target, inizio, fine, testo,  titolo, media, link):
         self.advertiser_id = advertiser_id
@@ -247,6 +248,37 @@ class Annunci(db.Model, UserMixin):
         self.media = media
         self.link=link
       
+class AnnunciBudget(db.Model, UserMixin):
+    __tablename__ = 'annuncibudget'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    annuncio_id = Column(Integer, ForeignKey('annunci.id'), nullable=False, unique=True)
+    budget = Column(Float, nullable=False)  # Budget totale per la campagna
+    budget_rimanente = Column(Float, nullable=False)  # Budget rimanente
+
+    annuncio = relationship('Annunci', backref=backref('annuncioa', uselist=False))
+
+    def __init__(self, annuncio_id, budget):
+        self.annuncio_id = annuncio_id
+        self.budget = budget
+        self.budget_rimanente = budget  # Inizialmente uguale al budget totale
+
+    def aggiorna_budget(self, click):
+        """
+        Aggiorna il budget rimanente in base al numero di clic ricevuti.
+        """
+        costo_totale = self.costo_per_click * click
+        if self.budget_rimanente >= costo_totale:
+            self.budget_rimanente -= costo_totale
+        else:
+            raise ValueError("Budget insufficiente per coprire il costo di questi clic.")
+
+    def ha_budget_disponibile(self):
+        """
+        Verifica se l'annuncio ha ancora budget disponibile.
+        """
+        return self.budget_rimanente > 0
+     
 class AnnunciClicks(db.Model):
     __tablename__ = 'annunci_clicks'
 
@@ -272,6 +304,18 @@ class AnnunciComments(db.Model):
         self.annuncio_id = annuncio_id
         self.utente_id = utente_id
         self.content = content
+
+    def decrementa_budget(self, amount):
+        if self.budget_rimanente >= amount:
+            self.budget_rimanente -= amount
+        else:
+            raise ValueError("Budget insufficiente")
+
+    def ha_budget_disponibile(self):
+        """
+        Verifica se l'annuncio ha ancora budget disponibile.
+        """
+        return self.budget_rimanente > 0
    
 class AnnunciLikes(db.Model, UserMixin):
     __tablename__ = 'annunci_likes'
@@ -496,12 +540,27 @@ def utente(id_utente):
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
 
     now = datetime.now()
-    annunci = Annunci.query.filter(
-        (Annunci.interesse_target.in_(interessi_ids) | (Annunci.interesse_target.is_(None))),
-        ((Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti')),
-        (Annunci.eta_target <= user.eta),
+
+    # Crea una sottoquery per ottenere gli annunci con il budget più alto
+    subquery = db.session.query(
+        AnnunciBudget.annuncio_id
+    ).join(
+        Annunci, Annunci.id == AnnunciBudget.annuncio_id
+    ).filter(
+        Annunci.interesse_target.in_(interessi_ids),
+        (Annunci.sesso_target == user.sesso) | (Annunci.sesso_target == 'tutti'),
+        Annunci.eta_target <= user.eta,
         Annunci.fine > now
-    ).order_by(Annunci.fine.desc()).limit(3).all()  # Limita i risultati a 3
+    ).order_by(
+        AnnunciBudget.budget.desc(),
+        Annunci.inizio.desc()
+    ).limit(3).subquery()
+
+    annunci = Annunci.query.join(
+        subquery, Annunci.id == subquery.c.annuncio_id
+    ).order_by(
+        Annunci.inizio.desc()
+    ).all()
 
     def get_time_ago(timestamp):
         if timestamp is None:
@@ -519,7 +578,6 @@ def utente(id_utente):
 
     return render_template('home_utente.html', user=user, posts=posts, utenti=utenti_dict, annunci=annunci, advertisers=advertisers)
 
-## home page inserzionista
 @app.route('/homepage/inserzionista/<int:id_utente>', methods=['GET', 'POST'])
 @login_required
 def inserzionista(id_utente):
@@ -543,14 +601,13 @@ def inserzionista(id_utente):
     interessi_utenti = UserInteressi.query.filter_by(utente_id=current_user_id).all()
     interessi_ids = [interesse.id_interessi for interesse in interessi_utenti]
     
-    
-
     # Recupera gli annunci creati dall'utente corrente
     now = datetime.now()
     annunci = Annunci.query.filter(
         Annunci.advertiser_id == current_user_id,
         Annunci.fine > now
     ).order_by(Annunci.inizio.desc()).all()
+
     def get_time_ago(timestamp):
         if timestamp is None:
             return "Data non disponibile"
@@ -561,6 +618,16 @@ def inserzionista(id_utente):
 
     for annuncio in annunci:
         annuncio.time_ago = get_time_ago(annuncio.inizio)
+    
+    # Recupera i dettagli del budget per ogni annuncio, gestendo il caso di assenza di budget
+    annunci_with_budget = []
+    for annuncio in annunci:
+        budget = AnnunciBudget.query.filter_by(annuncio_id=annuncio.id).first()
+        annunci_with_budget.append({
+            'annuncio': annuncio,
+            'budget': budget
+        })
+    
     # Recupera gli utenti che hanno creato gli annunci
     advertisers = Users.query.filter_by(ruolo=Ruolo.pubblicitari).all()
     
@@ -571,7 +638,16 @@ def inserzionista(id_utente):
 
     today = datetime.today().date()
     
-    return render_template('home_inserzionista.html', today=today, user=user, posts=posts, utenti_dict=utenti_dict, annunci=annunci, statistiche=statistiche_annunci, advertisers=advertisers)
+    return render_template(
+        'home_inserzionista.html',
+        today=today,
+        user=user,
+        posts=posts,
+        utenti_dict=utenti_dict,
+        annunci_with_budget=annunci_with_budget,
+        statistiche=statistiche_annunci,
+        advertisers=advertisers
+    )
 
 #--------------------------------------- pagina profilo utente e inserzionista ----------------------------------#
 
@@ -1181,34 +1257,24 @@ def send_message(other_user_id):
 
 #------------------------------- Pubblicazione annunci ---------------------------------#
 
-##pubblicare annuncio
 @app.route('/pubblica_annuncio', methods=['GET', 'POST'])
 @login_required
 def pubblica_annuncio():
     if request.method == 'POST':
         # Get the current time
         now = datetime.utcnow()
-        
-        # Count active announcements for the current user
-        active_announcements = Annunci.query.filter(
-            Annunci.advertiser_id == current_user.id_utente,
-            Annunci.fine > now
-        ).count()
-
-        if active_announcements >= 3:
-            flash('Hai già pubblicato il massimo numero di annunci attivi. Attendi che uno scada prima di pubblicarne un altro.', 'warning')
-            return redirect(url_for('scegli_post'))
 
         tipo_post = request.form['tipo_post']
         sesso_target = request.form['sesso_target']
-        eta_target = request.form['eta_target']
-        interesse_target = request.form['interesse_target']
+        eta_target = int(request.form['eta_target'])
+        interesse_target = int(request.form['interesse_target'])
         inizio = datetime.strptime(request.form['inizio'], '%Y-%m-%dT%H:%M')
         fine = datetime.strptime(request.form['fine'], '%Y-%m-%d')
-        testo = request.form['testo']
-        titolo = request.form['titolo']
+        testo = request.form.get('testo')
+        titolo = request.form.get('titolo')
         link = request.form.get('link')
-        
+        budget = float(request.form.get('budget', 0))  # Aggiungi il budget
+
         # Handle file upload
         file = request.files.get('media')
         if file and allowed_file(file.filename):
@@ -1234,6 +1300,12 @@ def pubblica_annuncio():
 
         try:
             db.session.add(nuovo_annuncio)
+            db.session.flush()  # Ensure the ID is generated before adding AnnunciBudget
+            nuovo_budget = AnnunciBudget(
+                annuncio_id=nuovo_annuncio.id,
+                budget=budget
+            )
+            db.session.add(nuovo_budget)
             db.session.commit()
             flash('Annuncio pubblicato con successo!', 'success')
             return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
@@ -1241,6 +1313,7 @@ def pubblica_annuncio():
             db.session.rollback()
             flash(f'Errore nella pubblicazione dell\'annuncio: {str(e)}', 'danger')
             return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
+    
     interessi = Interessi.query.all()
     return render_template('pubblica_annuncio.html', interessi=interessi)
 
@@ -1378,6 +1451,8 @@ def recupera_statistiche_annuncio(annuncio_id):
     
     return {'today': today_stats, 'yesterday': yesterday_stats}
 
+
+
 @app.route('/register_click', methods=['POST'])
 @login_required
 def register_click():
@@ -1385,32 +1460,50 @@ def register_click():
     annuncio_id = data.get('annuncio_id')
     utente_id = current_user.id_utente
     clicked_at = datetime.utcnow()
-    
+
     if annuncio_id is None:
         return jsonify({'error': 'Annuncio ID is required'}), 400
 
     try:
-        """
-        # Check if click already recorded to avoid duplicates
-        existing_click = AnnunciClicks.query.filter_by(
-            annuncio_id=annuncio_id, utente_id=utente_id
-        ).first()
-        if existing_click is not None:
-            return jsonify({'message': 'Click already recorded'}), 200
-"""
+        # Recupera l'annuncio e il budget associato
+        annuncio = Annunci.query.get(annuncio_id)
+        if annuncio is None:
+            return jsonify({'error': 'Annuncio non trovato'}), 404
+
+        budget_annuncio = annuncio.budget
+        if budget_annuncio is None:
+            return jsonify({'error': 'Budget non trovato per questo annuncio'}), 404
+
+        # Controlla se c'è ancora budget disponibile
+        if budget_annuncio.budget_rimanente < 0.5:
+            return jsonify({'error': 'Budget insufficiente'}), 400
+
+        # Diminuisci il budget rimanente
+        budget_annuncio.budget_rimanente -= 0.5
+
+        # Registra il clic
         new_click = AnnunciClicks(
             annuncio_id=annuncio_id,
             utente_id=utente_id,
             clicked_at=clicked_at
         )
         db.session.add(new_click)
+
+        # Verifica se il budget è diventato 0 o negativo e, in tal caso, elimina l'annuncio
+        if budget_annuncio.budget_rimanente <= 0:
+            db.session.delete(annuncio)
+
+        # Aggiorna il budget e l'annuncio nel database
         db.session.commit()
-        return jsonify({'message': 'Click registered successfully'}), 200
+
+        return jsonify({'message': 'Click registrato con successo'}), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-#------------------------------- Vedere ed eliminare l'annuncio ---------------------------------#
+
+#------------------------------- Vedere l'annuncio ---------------------------------#
 
 ## vedere l'annuncio
 @app.route('/annuncio_details/<int:annuncio_id>')
@@ -1437,28 +1530,6 @@ def annuncio_details(annuncio_id):
         comment_users=comment_users,
         firends=friends
     )
-
-## eliminare l'annuncio
-@app.route('/elimina_annuncio/<int:annuncio_id>', methods=['POST'])
-@login_required
-def elimina_annuncio(annuncio_id):
-    # Recupera l'annuncio con l'ID specificato
-    annuncio = Annunci.query.get_or_404(annuncio_id)
-    # Verifica se l'utente corrente è l'autore dell'annuncio
-    if annuncio.advertiser_id != current_user.id_utente:
-        flash("Non sei autorizzato a eliminare questo annuncio.", category="alert alert-danger")
-        return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
-    # Elimina i like associati all'annuncio
-    PostLikes.query.filter_by(post_id=annuncio_id).delete()
-    
-    # Elimina i click associati all'annuncio
-    AnnunciClicks.query.filter_by(annuncio_id=annuncio_id).delete()
-    
-    # Elimina l'annuncio
-    db.session.delete(annuncio)
-    db.session.commit()
-    flash("Annuncio eliminato con successo.", category="alert alert-success")
-    return redirect(url_for('inserzionista', id_utente=current_user.id_utente))
 
 #------------------------------- Interazioni annuncio ---------------------------------#
 

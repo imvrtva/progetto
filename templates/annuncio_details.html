@@ -281,13 +281,6 @@
                 </button>
             </form>
         </div>
-        {% if annuncio.advertiser_id == current_user.id_utente %}
-            <form method="post" action="{{ url_for('elimina_annuncio', annuncio_id=annuncio.id) }}" style="display:inline;">
-                <button type="submit" class="delete-button" onclick="return confirm('Sei sicuro di voler eliminare questo annuncio?');">
-                    <i class="fa fa-trash"></i>
-                </button>
-            </form>
-        {% endif %}
     </div>
     <hr>
 

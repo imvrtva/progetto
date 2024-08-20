@@ -107,34 +107,26 @@
         color: #777;
     }
 
-    .annuncio-item img, .annuncio-item video {
-        width: 100%;
-        height: auto;
-        border-radius: 10px;
-    }
-
     .annuncio-item {
-        margin-bottom: 20px;
         border-radius: 10px;
         overflow: hidden;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         background-color: #fff;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
         cursor: pointer;
+    }
+
+    .annuncio-item img, .annuncio-item video {
+        width: 100%;
+        height: auto;
     }
 
     .annuncio-header {
         padding: 10px;
         border-bottom: 1px solid #ddd;
         background-color: #fff;
-        display: flex;
-        align-items: center;
-    }
-
-    .annuncio-header img {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        margin-right: 10px;
     }
 
     .annuncio-header h5 {
@@ -143,26 +135,74 @@
         font-weight: 600;
     }
 
-    .annuncio-grid .col-md-4 {
-        padding: 15px;
+    .card-body {
+        padding: 10px; /* Ridotto per uno spazio più compatto */
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .card-text {
+        margin: 0;
+        font-size: 13px; /* Ridotto per testo più piccolo */
+        color: #333;
+    }
+
+    .card-footer {
+        background-color: #f1f1f1;
+        border-top: 1px solid #ddd;
+        padding: 8px; /* Ridotto per uno spazio più compatto */
+        font-size: 12px;
+        color: #777;
     }
 
     .statistics {
-        font-size: 12px;
-        color: #777;
-        margin-top: 10px;
+        font-size: 12px; /* Ridotto per una dimensione più piccola */
+        color: #888; /* Grigio per tutte le statistiche */
+        margin-top: 8px; /* Ridotto per uno spazio più compatto */
     }
-    
+
+    .budget {
+        font-weight: bold;
+        color: #888; /* Grigio per il budget */
+        margin-top: 8px; /* Ridotto per uno spazio più compatto */
+        font-size: 12px; /* Stesso stile delle statistiche */
+    }
+
     .improvement-positive {
         color: green;
     }
-    
+
     .improvement-negative {
         color: red;
     }
-    
+
     .improvement {
         font-weight: bold;
+    }
+
+    /* Styles for the table */
+    .annuncio-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .annuncio-table th, .annuncio-table td {
+        padding: 8px; /* Ridotto per uno spazio più compatto */
+        border: 1px solid #ddd;
+        text-align: left;
+        font-size: 12px; /* Ridotto per una dimensione più piccola */
+    }
+
+    .annuncio-table th {
+        background-color: #f4f4f4;
+    }
+    
+    .annuncio-table img {
+        max-width: 150px;
+        height: auto;
+        border-radius: 5px;
     }
 </style>
 
@@ -170,9 +210,12 @@
 
 <div class="container mt-4">
     <h2>I tuoi annunci</h2>
-    {% if annunci %}
-    <div class="row annuncio-grid">
-        {% for annuncio in annunci %}
+    {% if annunci_with_budget %}
+    <div class="row g-4">
+        {% for item in annunci_with_budget %}
+            {% set annuncio = item.annuncio %}
+            {% set budget = item.budget %}
+            
             {% set stats_today = statistiche[annuncio.id].today %}
             {% set stats_yesterday = statistiche[annuncio.id].yesterday %}
             
@@ -204,21 +247,23 @@
                                 <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
                                 Il tuo browser non supporta il tag video.
                             </video>
+                        {% elif annuncio.tipo_post == 'testo' %}
+                            <p class="card-text">{{ annuncio.testo }}</p>
                         {% endif %}
-                        
-                        <p class="card-text">{{ annuncio.testo }}</p>
-            
-                        {% if annuncio.link %}
-                            <p class="card-link">
-                                <a href="{{ annuncio.link }}" target="_blank" class="text-primary">Visita il sito</a>
-                            </p>
+                        {% if budget %}
+                            <p class="budget">Budget Totale: {{ budget.budget | float }} €</p>
+                            <p class="budget">Budget Rimanente: {{ budget.budget_rimanente | float }} €</p>
+                        {% else %}
+                            <p class="budget">Dettagli del budget non disponibili.</p>
                         {% endif %}
-                        
                         <div class="statistics">
-                            <p>Likes: {{ stats_today.likes_count }} <span class="improvement {% if likes_diff > 0 %}improvement-positive{% elif likes_diff < 0 %}improvement-negative{% endif %}">{{ likes_diff_str }}</span></p>
-                            <p>Comments: {{ stats_today.comments_count }} <span class="improvement {% if comments_diff > 0 %}improvement-positive{% elif comments_diff < 0 %}improvement-negative{% endif %}">{{ comments_diff_str }}</span></p>
-                            <p>Clicks: {{ stats_today.clicks_count }} <span class="improvement {% if clicks_diff > 0 %}improvement-positive{% elif clicks_diff < 0 %}improvement-negative{% endif %}">{{ clicks_diff_str }}</span></p>
+                            <p><strong>Mi Piace:</strong> Oggi {{ stats_today.likes_count }} ({{ likes_diff_str }})</p>
+                            <p><strong>Commenti:</strong> Oggi {{ stats_today.comments_count }} ({{ comments_diff_str }})</p>
+                            <p><strong>Clic:</strong> Oggi {{ stats_today.clicks_count }} ({{ clicks_diff_str }})</p>
                         </div>
+                    </div>
+                    <div class="card-footer">
+                        <p class="mb-0">Pubblicato il: {{ annuncio.time_ago }}</p>
                     </div>
                 </div>
             </div>
@@ -226,133 +271,100 @@
     </div>
     {% else %}
         <p>Non ci sono annunci da visualizzare.</p>
-        {% endif %}
-        <hr>
-        <h2>I tuoi post</h2>
-        {% if posts %}
-            <ul class="list-unstyled">
-                {% for post in posts %}
-                    <li class="post-item mb-3">
-                        <div class="card">
-                            <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
-                            <div class="card-body">
-                                <div class="d-flex align-items-start">
-                                    <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti_dict[post.utente] }}">
-                                    <div class="ms-2">
-                                        <h5 class="card-title">@{{ utenti_dict[post.utente] }}</h5>
-                                        <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
-                                        {% if post.media %}
-                                            {% if post.tipo_post == 'immagini' %}
-                                                <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
-                                            {% elif post.tipo_post == 'video' %}
-                                                <video class="post-media" controls>
-                                                    <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
-                                                    Il tuo browser non supporta il tag video.
-                                                </video>
-                                            {% endif %}
+    {% endif %}
+</div>
+    
+    <hr>
+    <h2>I tuoi post</h2>
+    {% if posts %}
+        <ul class="list-unstyled">
+            {% for post in posts %}
+                <li class="post-item mb-3">
+                    <div class="card">
+                        <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
+                        <div class="card-body">
+                            <div class="d-flex align-items-start">
+                                <img src="{{ url_for('static', filename=user.immagine) if user.immagine else url_for('static', filename='default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ utenti_dict[post.utente] }}">
+                                <div class="ms-2">
+                                    <h5 class="card-title">@{{ utenti_dict[post.utente] }}</h5>
+                                    <p class="card-text">{{ post.testo or "Nessun testo disponibile" }}</p>
+                                    {% if post.media %}
+                                        {% if post.tipo_post == 'immagini' %}
+                                            <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
+                                        {% elif post.tipo_post == 'video' %}
+                                            <video class="post-media" controls>
+                                                <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                                                Il tuo browser non supporta il tag video.
+                                            </video>
                                         {% endif %}
-                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="card-footer text-muted">
-                                {{ post.time_ago }}
-                            </div>
                         </div>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>Non ci sono post da visualizzare.</p>
-        {% endif %}
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.min.js"></script>
-    
-    <script>
-        document.getElementById('search-input').addEventListener('input', function() {
-            const query = this.value;
-            const suggestionsBox = document.getElementById('suggestions');
-            
-            if (query.length < 2) {
-                suggestionsBox.innerHTML = '';
-                suggestionsBox.style.display = 'none';
-                return;
-            }
-            
-            fetch(`/search_suggestions?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.suggestions.length > 0) {
-                        suggestionsBox.innerHTML = data.suggestions
-                            .filter(user => user.id !== {{ current_user.id_utente }})
-                            .map(user => 
-                                `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
-                            ).join('');
-                        suggestionsBox.style.display = 'block';
-                    } else {
-                        suggestionsBox.innerHTML = '<div class="autocomplete-suggestion">Nessun risultato</div>';
-                        suggestionsBox.style.display = 'block';
-                    }
-                })
-                .catch(error => console.error('Error fetching suggestions:', error));
-        });
-    
-        document.getElementById('suggestions').addEventListener('click', function(e) {
-            if (e.target && e.target.classList.contains('autocomplete-suggestion')) {
-                const userId = e.target.getAttribute('data-id');
-                window.location.href = `/profilo_amico/${userId}`;
-            }
-        });
-    
-        document.addEventListener('click', function(e) {
-            const suggestionsBox = document.getElementById('suggestions');
-            if (!document.getElementById('search').contains(e.target)) {
-                suggestionsBox.style.display = 'none';
-            }
-        });
+                        <div class="card-footer text-muted">
+                            {{ post.time_ago }}
+                        </div>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Non ci sono post da visualizzare.</p>
+    {% endif %}
+</div>
 
- 
-        function handleClick(event, annuncioDetailsUrl, annuncioId, linkUrl) {
-            // Controlla se il click è avvenuto su un link
-            if (event.target.tagName.toLowerCase() === 'a') {
-                const target = event.target;
-                const href = target.getAttribute('href');
-    
-                // Registra il click sul link se è stato fornito un URL del link
-                if (linkUrl) {
-                    fetch('/register_click', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            annuncio_id: annuncioId
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.message === 'Click registered successfully') {
-                            // Permetti il comportamento normale del link
-                            window.location.href = href;
-                        } else {
-                            console.error(data.error);
-                            window.location.href = href;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error registering click:', error);
-                        window.location.href = href;
-                    });
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.min.js"></script>
+
+<script>
+    document.getElementById('search-input').addEventListener('input', function() {
+        const query = this.value;
+        const suggestionsBox = document.getElementById('suggestions');
+        
+        if (query.length < 2) {
+            suggestionsBox.innerHTML = '';
+            suggestionsBox.style.display = 'none';
+            return;
+        }
+        
+        fetch(`/search_suggestions?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.suggestions.length > 0) {
+                    suggestionsBox.innerHTML = data.suggestions
+                        .filter(user => user.id !== {{ current_user.id_utente }})
+                        .map(user => 
+                            `<div class="autocomplete-suggestion" data-id="${user.id}">${user.username}</div>`
+                        ).join('');
+                    suggestionsBox.style.display = 'block';
                 } else {
-                    // Se non è fornito un linkUrl, non fare nulla di speciale
-                    window.location.href = href;
+                    suggestionsBox.innerHTML = '<div class="autocomplete-suggestion">Nessun risultato</div>';
+                    suggestionsBox.style.display = 'block';
                 }
-                
-                // Blocca il comportamento predefinito del link per evitare il doppio reindirizzamento
-                event.preventDefault();
-            } else {
-                // Altrimenti, registra il click sull'annuncio
+            })
+            .catch(error => console.error('Error fetching suggestions:', error));
+    });
+
+    document.getElementById('suggestions').addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('autocomplete-suggestion')) {
+            const userId = e.target.getAttribute('data-id');
+            window.location.href = `/profilo_amico/${userId}`;
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const suggestionsBox = document.getElementById('suggestions');
+        if (!document.getElementById('search').contains(e.target)) {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+
+    function handleClick(event, annuncioDetailsUrl, annuncioId, linkUrl) {
+        if (event.target.tagName.toLowerCase() === 'a') {
+            const target = event.target;
+            const href = target.getAttribute('href');
+
+            if (linkUrl) {
                 fetch('/register_click', {
                     method: 'POST',
                     headers: {
@@ -365,17 +377,50 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.message === 'Click registered successfully') {
-                        window.location.href = annuncioDetailsUrl;
+                        window.location.href = href;
                     } else {
                         console.error(data.error);
-                        window.location.href = annuncioDetailsUrl;
+                        window.location.href = href;
                     }
                 })
                 .catch(error => {
                     console.error('Error registering click:', error);
-                    window.location.href = annuncioDetailsUrl;
+                    window.location.href = href;
                 });
+            } else {
+                window.location.href = href;
             }
+            
+            event.preventDefault();
+        } else {
+            fetch('/register_click', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    annuncio_id: annuncioId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'Click registered successfully') {
+                    window.location.href = annuncioDetailsUrl;
+                } else {
+                    console.error(data.error);
+                    window.location.href = annuncioDetailsUrl;
+                }
+            })
+            .catch(error => {
+                console.error('Error registering click:', error);
+                window.location.href = annuncioDetailsUrl;
+            });
         }
+    }
+    function handleClick(event, url, annuncioId) {
+        event.preventDefault();
+        window.location.href = url;
+    }
 </script>
+
 {% endblock %}

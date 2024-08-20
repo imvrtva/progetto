@@ -101,3 +101,10 @@ INSERT INTO messaggi (id, testo, mittente_id, destinatario_id, creato_at, postin
 (3, 'Bella foto!', 3, 4, CURRENT_TIMESTAMP, 4),
 (4, 'Grazie! Come va?', 4, 1, CURRENT_TIMESTAMP, NULL),
 (5, 'Ci vediamo stasera?', 5, 1, CURRENT_TIMESTAMP, NULL);
+
+-- Inserimento per l'annuncio con id 1
+INSERT INTO annuncibudget (annuncio_id, budget_totale, budget_rimanente) VALUES
+(1, 5000.0, 5000.0),
+(2, 3000.0, 3000.0),
+(3, 4000.0, 4000.0);
+
