@@ -883,10 +883,11 @@ def share_post(post_id, friend_id):
 
 ## inserimento commenti
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
+@login_required
 def add_comment(post_id):
     post = Post.query.get_or_404(post_id)
     content = request.form['content']
-    user_id = 1  # Get the currently logged-in user ID
+    user_id = current_user.id_utente
     new_comment = PostComments(post_id=post_id, utente_id=user_id, content=content)
     db.session.add(new_comment)
     db.session.commit()

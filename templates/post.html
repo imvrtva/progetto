@@ -295,7 +295,7 @@
                     <img src="{{ comment_users[comment.id].url_photo() }}" alt="{{ comment_users[comment.id].username }}">
                     <a href="{{ url_for('profilo_amico', id_amico=comment_users[comment.id].id_utente) }}" class="username-link">
                         @{{ comment_users[comment.id].username }}
-                    </a>:
+                    </a>: {{ comment.content }}
                     {% if comment.utente_id == current_user.id_utente or post.utente == current_user.id_utente %}
                         <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="post" style="display: inline;">
                             <button type="submit" class="delete-comment" onclick="return confirm('Sei sicuro di voler eliminare questo commento?');">Elimina</button>
