@@ -5,20 +5,20 @@ CREATE TYPE sesso AS ENUM('maschio', 'femmina', 'altro', 'tutti');
 CREATE TABLE users (
     id_utente SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
-    immagine VARCHAR(100),  -- Modificato per corrispondere a immagine VARCHAR
+    immagine VARCHAR(100),
     nome VARCHAR(50) NOT NULL,
     cognome VARCHAR(50) NOT NULL,
-    password_ VARCHAR(150) NOT NULL,  -- Modificato per corrispondere a password_ VARCHAR
+    password_ VARCHAR(150) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     sesso sesso,
     eta INTEGER NOT NULL,
     ruolo ruolo,
-    bio VARCHAR(250)  -- Aggiunto per corrispondere a bio
+    bio VARCHAR(250)
 );
 
 CREATE TABLE interessi (
     id_interessi SERIAL PRIMARY KEY,
-    nome VARCHAR(50) NOT NULL  -- Aggiunto NOT NULL per corrispondere al modello
+    nome VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE user_interessi (
@@ -27,7 +27,7 @@ CREATE TABLE user_interessi (
     PRIMARY KEY (utente_id, id_interessi)
 );
 
-CREATE TABLE amicizia (
+CREATE TABLE amici (
     id_amicizia SERIAL PRIMARY KEY,
     io_utente INTEGER REFERENCES users(id_utente),
     user_amico INTEGER REFERENCES users(id_utente),
@@ -37,7 +37,7 @@ CREATE TABLE amicizia (
 CREATE TABLE posts (
     id SERIAL PRIMARY KEY,
     utente INTEGER REFERENCES users(id_utente),
-    media VARCHAR(255),  -- Modificato per corrispondere a media VARCHAR
+    media VARCHAR(255),
     tipo_post tipo_post,
     data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     testo TEXT
@@ -69,8 +69,8 @@ CREATE TABLE annunci (
     fine DATE,
     media VARCHAR(255),
     testo VARCHAR(255),
-    titolo VARCHAR(255),  -- Aggiunto titolo
-    link VARCHAR(200)  -- Aggiunto link
+    titolo VARCHAR(255),
+    link VARCHAR(200)
 );
 
 CREATE TABLE annunci_likes (
@@ -101,13 +101,13 @@ CREATE TABLE messaggi (
     mittente_id INTEGER NOT NULL REFERENCES users(id_utente) ON DELETE CASCADE,
     destinatario_id INTEGER NOT NULL REFERENCES users(id_utente) ON DELETE CASCADE,
     creato_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    postinviato INTEGER REFERENCES posts(id)  -- Aggiunto riferimento a postinviato
+    postinviato INTEGER REFERENCES posts(id)
 );
 
-CREATE TABLE annunci_budget (
-    id  SERIAL PRIMARY KEY,
+CREATE TABLE annuncibudget (
+    id SERIAL PRIMARY KEY,
     annuncio_id INTEGER NOT NULL UNIQUE,
-    budget_totale FLOAT NOT NULL,
+    budget FLOAT NOT NULL,
     budget_rimanente FLOAT NOT NULL,
     FOREIGN KEY (annuncio_id) REFERENCES annunci(id)
 );

@@ -1067,17 +1067,23 @@ def search_suggestions():
     if not query:
         return jsonify({'suggestions': []})
 
-    # Stampa il valore della query per debug
+    # Debugging: Stampa il valore della query e l'ID dell'utente corrente
     print(f"Received query: {query}")
+    print(f"Current user ID: {current_user.id_utente}")
 
-    suggestions = db.session.query(Users).filter(Users.username.ilike(f'%{query}%')).limit(10).all()
-    
-    # Stampa i risultati per debug
+    # Recupera gli utenti che corrispondono alla query escludendo l'utente corrente
+    suggestions = db.session.query(Users).filter(
+        Users.username.ilike(f'%{query}%'),
+        Users.id_utente != current_user.id_utente  # Escludi l'utente corrente
+    ).limit(10).all()
+
+    # Debugging: Stampa i risultati
     print(f"Suggestions found: {suggestions}")
 
     return jsonify({
         'suggestions': [{'id': user.id_utente, 'username': user.username} for user in suggestions]
     })
+
 
 ## visualizzazione profilo
 @app.route('/profilo_amico/<int:id_amico>', methods=['GET', 'POST'])
@@ -1090,22 +1096,30 @@ def profilo_amico(id_amico):
     amicizia = Amicizia.query.filter_by(io_utente=current_user.id_utente, user_amico=id_amico).first()
 
     if request.method == 'POST':
-        if amicizia:
-            # Se l'amicizia esiste, togli la connessione
-            db.session.delete(amicizia)
-        else:
-            # Altrimenti, crea una nuova amicizia
-            amicizia = Amicizia(io_utente=current_user.id_utente, user_amico=id_amico)
-            db.session.add(amicizia)
-        db.session.commit()
+        try:
+            if amicizia:
+                # Se l'amicizia esiste, rimuovila
+                db.session.delete(amicizia)
+            else:
+                # Crea una nuova amicizia
+                nuova_amicizia = Amicizia(io_utente=current_user.id_utente, user_amico=id_amico)
+                db.session.add(nuova_amicizia)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Errore: Non è stato possibile completare l\'operazione. Riprovare.', 'error')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Errore imprevisto: {str(e)}', 'error')
         return redirect(url_for('profilo_amico', id_amico=id_amico))
 
-    # Recupera i post solo se si segue l'utente
     posts = []
-    if amicizia:
+    annunci = []
+    if amicizia or amico.ruolo == Ruolo.pubblicitari:
         posts = Post.query.filter_by(utente=id_amico).all()
+        annunci = Annunci.query.filter_by(advertiser_id=id_amico).all()
 
-    return render_template('profilo_amico.html', amico=amico, seguendo=amicizia is not None, posts=posts)
+    return render_template('profilo_amico.html', amico=amico, seguendo=amicizia is not None, posts=posts, annunci=annunci)
 
 #------------------------------- FOLLOWER, SEGUITI, E RIMUOVERE AMICI/SEGUITI ---------------------------------#
 

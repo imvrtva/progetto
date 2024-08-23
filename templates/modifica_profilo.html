@@ -57,10 +57,10 @@
         <div class="form-group">
             <label for="sesso">Sesso:</label>
             <select class="form-control" id="sesso" name="sesso">
-                <option value="maschio" {% if user.sesso == 'maschio' %}selected{% endif %}>Maschio</option>
-                <option value="femmina" {% if user.sesso == 'femmina' %}selected{% endif %}>Femmina</option>
-                <option value="altro" {% if user.sesso == 'altro' %}selected{% endif %}>Altro</option>
-            </select>
+                <option value="maschio" {% if user.sesso.value == 'maschio' %}selected{% endif %}>Maschio</option>
+                <option value="femmina" {% if user.sesso.value == 'femmina' %}selected{% endif %}>Femmina</option>
+                <option value="altro" {% if user.sesso.value == 'altro' %}selected{% endif %}>Altro</option>
+            </select>            
         </div>
         <div class="form-group">
             <label for="eta">Etá :</label>

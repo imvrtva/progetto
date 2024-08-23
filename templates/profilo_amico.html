@@ -20,7 +20,42 @@
         color: #721c24;
         border: 1px solid #f5c6cb;
     }
+    .advertising-post {
+        position: relative;
+        border: 1px solid #e0e0e0;
+        background-color: #fff3e0; /* Colore di sfondo chiaro e caldo */
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s ease-in-out;
+    }
+    .advertising-post:hover {
+        transform: translateY(-5px); /* Effetto hover per alzare la card */
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    }
+    .advertising-post .star-icon {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 24px;
+        color: #ffc107; /* Colore giallo oro per la stella */
+    }
+    .advertising-post .btn-primary {
+        background-color: #ff9800; /* Colore arancione per il pulsante */
+        border-color: #ff9800;
+    }
+    .advertising-post .btn-primary:hover {
+        background-color: #e68900;
+        border-color: #e68900;
+    }
+    /* Stile del testo all'interno degli annunci */
+    .advertising-post .card-text {
+        color: #000; /* Colore del testo nero per il corpo dell'annuncio */
+    }
+    .advertising-post .card-title {
+        color: #000; /* Colore del titolo dell'annuncio in nero */
+    }
 </style>
+
 <div class="container mt-1">
     <!-- Profilo Header -->
     <div class="profile-header d-flex align-items-center mb-4">
@@ -44,16 +79,14 @@
                     Questo profilo è il tuo
                 {% endif %}
             </form>
-            
         </div>
     </div>
     <hr>
-    
-    {% if seguendo %}
-    <!-- Post Pubblicati -->
-    <h3 class="mt-4 mb-3 font-weight-bold">Post Pubblicati</h3>
-    <div class="row">
-        {% if posts %}
+
+    {% if posts or annunci %}
+        <!-- Post Pubblicati e Annunci Pubblicitari -->
+        <h3 class="mt-4 mb-3 font-weight-bold">Post</h3>
+        <div class="row">
             {% for post in posts %}
             <div class="col-md-4 mb-4">
                 <a href="{{ url_for('post_details', post_id=post.id) }}" class="text-decoration-none">
@@ -75,13 +108,44 @@
                 </a>
             </div>
             {% endfor %}
-        {% else %}
-            <p class="text-center">Non ci sono post pubblicati.</p>
-        {% endif %}
-    </div>
+
+            <!-- Mostra gli annunci pubblicitari -->
+            {% for annuncio in annunci %}
+            <div class="col-md-4 mb-4">
+                <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" class="text-decoration-none">
+                    <div class="card border-0 shadow-sm h-100 advertising-post">
+                        {% if annuncio.media %}
+                            {% if annuncio.tipo_post == 'immagini' %}
+                                <img src="{{ url_for('static', filename=annuncio.media) }}" alt="Annuncio" class="card-img-top">
+                            {% elif annuncio.tipo_post == 'video' %}
+                                <video controls class="card-img-top">
+                                    <source src="{{ url_for('static', filename=annuncio.media) }}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            {% endif %}
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ annuncio.titolo or "Annuncio senza titolo" }}</h5>
+                            <p class="card-text">{{ annuncio.testo or "Nessun testo disponibile" }}</p>
+                            {% if annuncio.link %}
+                                <a href="{{ annuncio.link }}" target="_blank" class="btn btn-primary">Visita</a>
+                            {% endif %}
+                        </div>
+                        <!-- Icona a forma di stella per contrassegnare l'annuncio -->
+                        <span class="star-icon">★</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
     {% else %}
-    <!-- Messaggio se non si segue l'utente -->
-    <p class="text-center mt-4">Segui l'utente per vedere i suoi post.</p>
+        <p class="text-center">
+            {% if amico.ruolo == 'pubblicitari' %}
+                Questo utente non ha ancora pubblicato post o annunci.
+            {% else %}
+                Segui l'utente per vedere i suoi post.
+            {% endif %}
+        </p>
     {% endif %}
 </div>
 {% endblock %}

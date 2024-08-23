@@ -69,6 +69,7 @@
         padding: 10px;
         cursor: pointer;
         border-bottom: 1px solid #ddd; /* Separazione tra i suggerimenti */
+        
     }
 
     .autocomplete-suggestion:last-child {
@@ -261,50 +262,62 @@
 </div>
 
 <script>
-    const searchInput = document.getElementById("search-input");
-    const suggestions = document.getElementById("suggestions");
+ const searchInput = document.getElementById("search-input");
+const suggestions = document.getElementById("suggestions");
 
-    searchInput.addEventListener("input", function() {
-        const query = searchInput.value.trim();
+searchInput.addEventListener("input", function() {
+    const query = searchInput.value.trim();
 
-        if (query.length >= 2) {
-            fetch(`/search_person`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ query: query })
-            })
-            .then(response => response.json())
-            .then(data => {
-                suggestions.innerHTML = "";
-                if (data.length > 0) {
-                    data.forEach(item => {
-                        const suggestionItem = document.createElement("div");
-                        suggestionItem.classList.add("autocomplete-suggestion");
-                        suggestionItem.textContent = item.username;
-                        suggestionItem.addEventListener("click", function() {
-                            searchInput.value = item.username;
-                            suggestions.innerHTML = "";
-                        });
-                        suggestions.appendChild(suggestionItem);
-                    });
-                    suggestions.style.display = "block";
-                } else {
-                    suggestions.style.display = "none";
-                }
-            });
-        } else {
+    if (query.length >= 2) {
+        fetch(`/search_suggestions?q=${encodeURIComponent(query)}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Data received:', data);
             suggestions.innerHTML = "";
-            suggestions.style.display = "none";
-        }
-    });
+            if (data.suggestions.length > 0) {
+                data.suggestions.forEach(item => {
+                    const suggestionItem = document.createElement("div");
+                    suggestionItem.classList.add("autocomplete-suggestion");
+                    suggestionItem.textContent = item.username;
+                    suggestionItem.addEventListener("click", function() {
+                        window.location.href = `/profilo_amico/${item.id}`;  // Reindirizza al profilo dell'amico
+                    });
+                    suggestions.appendChild(suggestionItem);
+                });
+                suggestions.style.display = "block";
+            } else {
+                suggestions.style.display = "none";
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    } else {
+        suggestions.innerHTML = "";
+        suggestions.style.display = "none";
+    }
+});
 
-    document.addEventListener("click", function(event) {
-        if (!searchInput.contains(event.target)) {
-            suggestions.style.display = "none";
-        }
-    });
+document.addEventListener("click", function(event) {
+    if (!searchInput.contains(event.target)) {
+        suggestions.style.display = "none";
+    }
+});
+
+
+document.addEventListener("click", function(event) {
+    if (!searchInput.contains(event.target)) {
+        suggestions.style.display = "none";
+    }
+});
+
+
+
 
     function registerClick(annuncioId) {
         fetch(`/register_click`, {
