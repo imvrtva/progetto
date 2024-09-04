@@ -240,23 +240,6 @@ BEFORE INSERT ON annunci_comments
 FOR EACH ROW
 EXECUTE FUNCTION update_created_at();
 
-/*---------------------------------------------------------------------------*/
-
---trigger per assicurarsi che l'età sia un valore positivo nella tabella users:
-CREATE OR REPLACE FUNCTION check_eta()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.eta <= 0 THEN
-        RAISE EXCEPTION 'L''età deve essere un valore positivo';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER check_eta_positive
-BEFORE INSERT OR UPDATE ON users
-FOR EACH ROW
-EXECUTE FUNCTION check_eta();
 
 /*---------------------------------------------------------------------------*/
 

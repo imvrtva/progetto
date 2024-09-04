@@ -5,24 +5,7 @@
 {% block content %}
 
 <style>
-    .flash-message {
-        padding: 10px;
-        border-radius: 5px;
-        margin: 10px 0;
-    }
-    .flash-message.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
-    .flash-message.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-    }
-</style>
-<style>
-    /* Gli stili sono invariati */
+    /* CSS invariato */
     .container {
         max-width: 1100px;
         margin: 0 auto;
@@ -35,13 +18,6 @@
         position: relative;
         z-index: 1000; /* Assicurati che abbia un z-index alto */
     }
-
-    #posts {
-        margin-top: 20px;
-        padding-top: 0;
-    }
-
-    /* Aggiungi border-radius all'input per farlo adattare */
     #search-input {
         border-radius: 10px; /* Arrotonda gli angoli dell'input di ricerca */
         border: none; /* Rimuovi il bordo dell'input per adattarsi meglio al contenitore */
@@ -69,61 +45,73 @@
         padding: 10px;
         cursor: pointer;
         border-bottom: 1px solid #ddd; /* Separazione tra i suggerimenti */
-        
     }
 
-    .autocomplete-suggestion:last-child {
-        border-bottom: none; /* Rimuove la separazione dall'ultimo suggerimento */
-    }
-
-    .autocomplete-suggestion:hover {
-        background-color: #eee;
-    }
-
-    .profile-img {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        margin-right: 10px;
-    }
-
-    .post-media {
-        width: 100%;
-        height: auto;
-        border-radius: 10px;
-        margin-bottom: 10px;
+    /* CSS aggiornato per la griglia stile Pinterest */
+    .posts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        grid-auto-rows: masonry;
     }
 
     .card {
-        margin-bottom: 20px;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         background-color: #fff;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: auto;
     }
 
     .card-body {
         padding: 15px;
-    }
-
-    .card-text {
-        margin: 0;
-        font-size: 14px;
-        color: #333;
+        flex-grow: 1;
     }
 
     .card-footer {
-        background-color: #f1f1f1;
-        border-top: 1px solid #ddd;
-        padding: 10px;
+        background-color: #f8f9fa;
+        padding: 10px 15px;
         font-size: 12px;
-        color: #777;
+        color: #888;
+        border-top: none;
+        text-align: left;
+        border-radius: 0 0 20px 20px;
+    }
+
+    .post-media {
+        width: 100%;
+        max-height: 300px;
+        object-fit: cover;
+        border-radius: 15px;
+        margin-bottom: 10px;
+    }
+
+    /* Modifiche per le foto profilo circolari e più piccole */
+    .profile-img {
+        width: 40px; /* Dimensione ridotta */
+        height: 40px; /* Dimensione ridotta */
+        border-radius: 50%; /* Per renderle circolari */
+        object-fit: cover;
+        margin-right: 10px;
     }
 
     .annuncio-item {
         border-radius: 10px;
         overflow: hidden;
         background-color: #fff;
+        position: relative;
+    }
+
+    .annuncio-item .stretched-link {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
     }
 
     .annuncio-header {
@@ -137,8 +125,9 @@
     .annuncio-header img {
         width: 30px;
         height: 30px;
-        border-radius: 50%;
+        border-radius: 50%; /* Per renderle circolari */
         margin-right: 10px;
+        object-fit: cover;
     }
 
     .annuncio-header h5 {
@@ -176,14 +165,11 @@
         {% if annunci %}
             {% for annuncio in annunci %}
                 <div class="col-md-4 mb-4">
-                    <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" 
-                    class="stretched-link" 
-                    data-id="{{ annuncio.id }}"
-                    onclick="registerClick({{ annuncio.id }})"></a>
-
-
-
                     <div class="annuncio-item card">
+                        <a href="{{ url_for('annuncio_details', annuncio_id=annuncio.id) }}" 
+                        class="stretched-link" 
+                        onclick="registerClick({{ annuncio.id }});">
+                        </a>
                         <div class="annuncio-header">
                             {% set advertiser_data = advertisers.get(annuncio.advertiser_id) %}
                             {% if advertiser_data %}
@@ -210,7 +196,6 @@
                             <p class="card-text">{{ annuncio.testo }}</p>
                         </div>
                     </div>
-                </a>
                 </div>
             {% endfor %}
         {% else %}
@@ -220,46 +205,45 @@
     <hr>
     <h2>Post dei tuoi amici</h2>
     {% if posts %}
-        <ul class="list-unstyled">
-            {% for post in posts %}
-            <li class="post-item mb-3">
-                <div class="card">
-                    <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
-                    <div class="card-body">
-                        <div class="d-flex align-items-start">
-                            {% set user_data = utenti.get(post.utente) %}
-                            {% if user_data %}
-                                <img src="{{ url_for('static', filename=user_data['immagine'] or 'default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ user_data['username'] }}">
-                                <div class="ms-2">
-                                    <h5 class="card-title">@{{ user_data['username'] }}</h5>
-                                    <p class="card-text">{{ post.testo[:200] if post.testo|length > 200 else post.testo }}{% if post.testo|length > 200 %}... <a href="{{ url_for('post_details', post_id=post.id) }}">Leggi di più</a>{% endif %}</p>
-                                    {% if post.media %}
-                                        {% if post.tipo_post == 'immagini' %}
-                                            <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
-                                        {% elif post.tipo_post == 'video' %}
-                                            <video class="post-media" controls>
-                                                <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
-                                                Il tuo browser non supporta il video.
-                                            </video>
-                                        {% endif %}
-                                    {% endif %}
-                                </div>
-                            {% else %}
-                                <p>Utente sconosciuto</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="card-footer text-muted">
-                        Pubblicato il {{ post.data_creazione.strftime('%d-%m-%Y') }}
-                    </div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
+    <div class="posts-grid">
+        {% for post in posts %}
+        <div class="card">
+            <a href="{{ url_for('post_details', post_id=post.id) }}" class="stretched-link"></a>
+            <div class="card-body">
+                {% set user_data = utenti.get(post.utente) %}
+                {% if user_data %}
+                    <img src="{{ url_for('static', filename=user_data['immagine'] or 'default_profile.png') }}" class="profile-img" alt="Foto profilo di {{ user_data['username'] }}">
+                    <h5 class="card-title">@{{ user_data['username'] }}</h5>
+                {% else %}
+                    <p>Utente sconosciuto</p>
+                {% endif %}
+
+                {% if post.testo %}
+                    <p class="card-text">{{ post.testo }}</p>
+                {% endif %}
+
+                {% if post.media %}
+                    {% if post.tipo_post == 'immagini' %}
+                        <img src="{{ url_for('static', filename=post.media) }}" class="post-media" alt="Immagine del post">
+                    {% elif post.tipo_post == 'video' %}
+                        <video class="post-media" controls>
+                            <source src="{{ url_for('static', filename=post.media) }}" type="video/mp4">
+                            Il tuo browser non supporta il video.
+                        </video>
+                    {% endif %}
+                {% endif %}
+            </div>
+            <div class="card-footer text-muted">
+                Pubblicato il {{ post.data_creazione.strftime('%d-%m-%Y') }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
     {% else %}
         <p>Non ci sono post dei tuoi amici.</p>
     {% endif %}
-</div>
+
+</div> 
 
 <script>
  const searchInput = document.getElementById("search-input");
